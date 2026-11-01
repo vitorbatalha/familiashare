@@ -2,14 +2,15 @@ package main
 
 // Benchmark de transmissão: o app transmite de verdade (captura → FFmpeg → WebRTC) para
 // um espectador interno, no mesmo processo, sem rede externa. Serve para garantir que
-// mudanças no código não pioram qualidade nem desempenho.
+// mudanças no código não pioram qualidade nem desempenho. Ver scripts/bench.ps1.
 //
 // Uso (PowerShell):
-//   $env:FAMILIASHARE_BENCH = "20"            # segundos medidos (após 3 s de aquecimento)
-//   $env:FAMILIASHARE_BENCH_ENCODER = "nvenc" # opcional: auto | nvenc | amf | qsv | mf
-//   $env:FAMILIASHARE_BENCH_CODEC = "h264"    # opcional: h264 | av1
-//   $env:FAMILIASHARE_BENCH_MBPS = "12"       # opcional
-//   .\familiashare.exe | Out-String           # imprime uma linha JSON
+//
+//	$env:FAMILIASHARE_BENCH = "20"            # segundos medidos (após 3 s de aquecimento)
+//	$env:FAMILIASHARE_BENCH_ENCODER = "nvenc" # opcional: auto | nvenc | amf | qsv | mf
+//	$env:FAMILIASHARE_BENCH_CODEC = "h264"    # opcional: h264 | av1
+//	$env:FAMILIASHARE_BENCH_MBPS = "12"       # opcional
+//	.\familiashare.exe | Out-String           # imprime uma linha JSON
 
 import (
 	"encoding/json"
@@ -19,10 +20,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
-	"unsafe"
 
 	"github.com/pion/webrtc/v4"
-	"golang.org/x/sys/windows"
+	"github.com/vitorbatalha/familiashare/internal/config"
+	"github.com/vitorbatalha/familiashare/internal/stream"
+	"github.com/vitorbatalha/familiashare/internal/winapi"
 )
 
 type BenchResult struct {
@@ -35,7 +37,7 @@ type BenchResult struct {
 	SendFPS   float64 `json:"send_fps"`   // quadros enviados por segundo
 	RecvFPS   float64 `json:"recv_fps"`   // quadros completos recebidos por segundo
 	RecvMbps  float64 `json:"recv_mbps"`  // bitrate de vídeo recebido
-	LossPct   float64 `json:"loss_pct"`   // pacotes de vídeo que nunca chegaram
+	LossPct   float64 `json:"loss_pct"`   // buracos na sequência na 1ª chegada (inclui o que a retransmissão recupera)
 	GapP50ms  float64 `json:"gap_p50_ms"` // intervalo entre quadros (mediana)
 	GapP95ms  float64 `json:"gap_p95_ms"` // engasgos aparecem aqui
 	GapMaxms  float64 `json:"gap_max_ms"`
@@ -52,8 +54,8 @@ func envOr(k, def string) string {
 	return def
 }
 
-func runBench(secs int) {
-	cfg := loadConfig()
+func runBench(dataDir string, secs int) {
+	cfg := config.Load(dataDir)
 	cfg.Encoder = envOr("FAMILIASHARE_BENCH_ENCODER", "auto")
 	cfg.Codec = envOr("FAMILIASHARE_BENCH_CODEC", "h264")
 	if m, err := strconv.Atoi(os.Getenv("FAMILIASHARE_BENCH_MBPS")); err == nil {
@@ -66,7 +68,7 @@ func runBench(secs int) {
 		fmt.Println(string(b))
 	}
 
-	h := newHost()
+	h := stream.New()
 	sig := newLoopSignaler()
 	if err := h.Start(cfg, sig); err != nil {
 		res.Err = err.Error()
@@ -91,17 +93,17 @@ func runBench(secs int) {
 
 	rx := sig.rx
 	rx.reset()
-	sentFrames0 := h.video.frames.Load()
-	app0, ff0 := cpuTimes()
+	sent0 := h.FramesSent()
+	app0, ff0 := winapi.ProcessCPUTime(), winapi.ChildrenCPUTime()
 	t0 := time.Now()
 	time.Sleep(time.Duration(secs) * time.Second)
 	el := time.Since(t0).Seconds()
-	app1, ff1 := cpuTimes()
+	app1, ff1 := winapi.ProcessCPUTime(), winapi.ChildrenCPUTime()
 
 	st := h.Stats()
 	res.Pipeline, res.Width, res.Height = st.Pipeline, st.Width, st.Height
 	res.Seconds = el
-	res.SendFPS = float64(h.video.frames.Load()-sentFrames0) / el
+	res.SendFPS = float64(h.FramesSent()-sent0) / el
 	res.CPUApp = (app1 - app0).Seconds() / el * 100
 	res.CPUFFmpeg = (ff1 - ff0).Seconds() / el * 100
 	rx.fill(&res, el)
@@ -111,7 +113,7 @@ func runBench(secs int) {
 /* ---------- sinalização em laço local ---------- */
 
 type loopSignaler struct {
-	host *Host
+	host *stream.Host
 	rx   *benchReceiver
 	q    chan func()
 }
@@ -126,7 +128,7 @@ func newLoopSignaler() *loopSignaler {
 	return s
 }
 
-func (s *loopSignaler) Me() string                   { return "bench-host" }
+func (s *loopSignaler) Me() string                      { return "bench-host" }
 func (s *loopSignaler) Send(dst, t string, d any) error { return nil }
 func (s *loopSignaler) SendOffer(dst, sdp string) error {
 	s.q <- func() { s.rx.onOffer(s, sdp) }
@@ -146,16 +148,16 @@ func (s *loopSignaler) SendCandidate(dst, owner string, c webrtc.ICECandidateIni
 type benchReceiver struct {
 	pc *webrtc.PeerConnection
 
-	mu         sync.Mutex
-	vBytes     int64
-	vPackets   int64
-	vLost      int64
-	frames     int64
-	lastSeq    uint16
-	haveSeq    bool
-	lastFrame  time.Time
-	gaps       []float64
-	aBytes     int64
+	mu        sync.Mutex
+	vBytes    int64
+	vPackets  int64
+	vLost     int64
+	frames    int64
+	lastSeq   uint16
+	haveSeq   bool
+	lastFrame time.Time
+	gaps      []float64
+	aBytes    int64
 }
 
 func (r *benchReceiver) onOffer(s *loopSignaler, sdp string) {
@@ -238,27 +240,4 @@ func (r *benchReceiver) fill(res *BenchResult, el float64) {
 		res.GapP95ms = g[len(g)*95/100]
 		res.GapMaxms = g[len(g)-1]
 	}
-}
-
-/* ---------- uso de CPU: o app e os FFmpeg (todos no job object) ---------- */
-
-type jobAccounting struct {
-	TotalUserTime, TotalKernelTime                      int64
-	ThisPeriodTotalUserTime, ThisPeriodTotalKernelTime  int64
-	TotalPageFaultCount, TotalProcesses                 uint32
-	ActiveProcesses, TotalTerminatedProcesses           uint32
-}
-
-func cpuTimes() (app, ffmpeg time.Duration) {
-	var c, e, k, u windows.Filetime
-	if windows.GetProcessTimes(windows.CurrentProcess(), &c, &e, &k, &u) == nil {
-		app = time.Duration((int64(k.HighDateTime)<<32|int64(k.LowDateTime))+(int64(u.HighDateTime)<<32|int64(u.LowDateTime))) * 100
-	}
-	if job != 0 {
-		var info jobAccounting
-		if windows.QueryInformationJobObject(job, 1 /* JobObjectBasicAccountingInformation */, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), nil) == nil {
-			ffmpeg = time.Duration(info.TotalUserTime+info.TotalKernelTime) * 100
-		}
-	}
-	return app, ffmpeg
 }

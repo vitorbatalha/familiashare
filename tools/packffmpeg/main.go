@@ -1,5 +1,7 @@
-// pack comprime o ffmpeg.exe para ser embutido no tela.exe.
-// Uso: go run ./cmd/pack <caminho/ffmpeg.exe> ffmpeg.exe.zst
+// Comando packffmpeg comprime um ffmpeg.exe (zstd, nível máximo) para ser embutido
+// no familiashare. Só é necessário ao trocar a versão do FFmpeg (ver CONTRIBUTING.md).
+//
+//	go run ./tools/packffmpeg C:\caminho\ffmpeg.exe internal\ffmpeg\ffmpeg.exe.zst
 package main
 
 import (
@@ -12,7 +14,7 @@ import (
 
 func main() {
 	if len(os.Args) != 3 {
-		log.Fatal("uso: pack <ffmpeg.exe> <saida.zst>")
+		log.Fatal("uso: packffmpeg <ffmpeg.exe> <saida.zst>")
 	}
 	in, err := os.Open(os.Args[1])
 	if err != nil {

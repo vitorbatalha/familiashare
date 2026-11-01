@@ -1,13 +1,13 @@
-package main
-
-// Atualização automática a partir do link público do Google Drive.
+// Package update é a autoatualização do app a partir do link público do Google Drive.
 //
-// O build.ps1 grava um identificador de versão (data/hora do build) em dois lugares:
-//   - dentro do programa (buildID, via -ldflags), e
+// O scripts/build.ps1 grava um identificador de versão (data/hora do build) em dois lugares:
+//   - dentro do programa (BuildID, via -ldflags), e
 //   - nos últimos bytes do familiashare.exe (uma "etiqueta" anexada ao arquivo).
+//
 // Ao abrir, o app pede ao Drive só os últimos 64 bytes do arquivo publicado e compara
-// a etiqueta com o próprio buildID. Se a do Drive for mais nova, avisa; o botão
+// a etiqueta com o próprio BuildID. Se a do Drive for mais nova, avisa; o botão
 // "Atualizar" baixa o arquivo inteiro, troca o .exe e reabre o app.
+package update
 
 import (
 	"bytes"
@@ -24,25 +24,30 @@ import (
 	"time"
 )
 
-// buildID é definido no build: -ldflags "-X main.buildID=20261029-141500".
+// BuildID é definido no build (scripts/build.ps1):
+//
+//	-ldflags "-X github.com/vitorbatalha/familiashare/internal/update.BuildID=20261029-141500"
+//
 // Vazio = build de desenvolvimento (não procura atualização).
-var buildID string
+var BuildID string
 
 const (
 	driveFileID = "1FTrDu4b9hTEYuy83MQdDJquKykb2QX4C"
 	// confirm=t pula a página "não foi possível verificar vírus" que o Drive mostra para .exe
 	driveDownloadURL = "https://drive.usercontent.google.com/download?id=" + driveFileID + "&export=download&confirm=t"
-	driveViewURL     = "https://drive.google.com/file/d/" + driveFileID + "/view"
+	// DriveViewURL é a página do arquivo, para baixar manualmente pelo navegador.
+	DriveViewURL  = "https://drive.google.com/file/d/" + driveFileID + "/view"
 	trailerMagic  = "FAMILIASHARE-BUILD:"
 	checkInterval = 6 * time.Hour
 )
 
-// driveURL pode ser trocado por TELA_UPDATE_URL (só para testes locais).
+// driveURL pode ser trocado por FAMILIASHARE_UPDATE_URL (só para testes locais).
 var driveURL = driveDownloadURL
 
 var trailerRe = regexp.MustCompile(trailerMagic + `([0-9]{8}-[0-9]{6})`)
 
-type UpdateState struct {
+// State é o estado da atualização, para a interface.
+type State struct {
 	Available bool    `json:"available"`
 	Version   string  `json:"version"`  // versão no Drive
 	Current   string  `json:"current"`  // versão rodando
@@ -51,20 +56,23 @@ type UpdateState struct {
 	Err       string  `json:"err"`
 }
 
-type updater struct {
+// Updater procura e aplica atualizações.
+type Updater struct {
 	mu      sync.Mutex
-	st      UpdateState
+	st      State
 	restart string // caminho do .exe novo, aberto quando o app terminar de fechar
 	quit    func() // fecha a janela
 }
 
-func newUpdater(quit func()) *updater {
-	u := &updater{st: UpdateState{Current: buildID}, quit: quit}
-	if t := os.Getenv("TELA_UPDATE_URL"); t != "" {
+// New começa a procurar atualizações (3 s depois de abrir e a cada 6 h). quit deve
+// fechar a janela do app; depois que ela fechar, chame RestartIfNeeded.
+func New(quit func()) *Updater {
+	u := &Updater{st: State{Current: BuildID}, quit: quit}
+	if t := os.Getenv("FAMILIASHARE_UPDATE_URL"); t != "" {
 		driveURL = t
 	}
 	cleanupOldExe()
-	if buildID != "" {
+	if BuildID != "" {
 		go func() {
 			time.Sleep(3 * time.Second)
 			for {
@@ -76,14 +84,14 @@ func newUpdater(quit func()) *updater {
 	return u
 }
 
-func (u *updater) State() UpdateState {
+func (u *Updater) State() State {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	return u.st
 }
 
 // check lê só a etiqueta no fim do arquivo do Drive (pedido de 64 bytes).
-func (u *updater) check() {
+func (u *Updater) check() {
 	remote, err := remoteBuildID()
 	if err != nil {
 		log.Printf("atualização: %v", err)
@@ -91,10 +99,9 @@ func (u *updater) check() {
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	// ids são data-hora, então comparação de texto = comparação de data
-	u.st.Available = remote > buildID
+	u.st.Available = newer(remote, BuildID)
 	u.st.Version = remote
-	log.Printf("atualização: rodando %s, Drive tem %s", buildID, remote)
+	log.Printf("atualização: rodando %s, Drive tem %s", BuildID, remote)
 }
 
 func remoteBuildID() (string, error) {
@@ -110,15 +117,28 @@ func remoteBuildID() (string, error) {
 		return "", fmt.Errorf("Drive respondeu %s (esperado 206)", resp.Status)
 	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	m := trailerRe.FindSubmatch(b)
-	if m == nil {
+	id, ok := parseTrailer(b)
+	if !ok {
 		return "", errors.New("arquivo no Drive sem etiqueta de versão (versão antiga)")
 	}
-	return string(m[1]), nil
+	return id, nil
 }
 
+// parseTrailer acha a etiqueta "FAMILIASHARE-BUILD:aaaammdd-hhmmss" em b.
+func parseTrailer(b []byte) (string, bool) {
+	m := trailerRe.FindSubmatch(b)
+	if m == nil {
+		return "", false
+	}
+	return string(m[1]), true
+}
+
+// newer diz se remote é uma versão mais nova que current. Os ids são data-hora
+// (aaaammdd-hhmmss), então comparar o texto é comparar a data.
+func newer(remote, current string) bool { return remote > current }
+
 // Apply baixa a versão nova, troca o .exe e pede para o app fechar e reabrir.
-func (u *updater) Apply() {
+func (u *Updater) Apply() {
 	u.mu.Lock()
 	if u.st.Busy || !u.st.Available {
 		u.mu.Unlock()
@@ -142,7 +162,7 @@ func (u *updater) Apply() {
 	u.quit()
 }
 
-func (u *updater) download(want string) (string, error) {
+func (u *Updater) download(want string) (string, error) {
 	self, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -234,7 +254,7 @@ func verifyExe(path, want string) error {
 }
 
 // RestartIfNeeded abre a versão nova depois que o app terminou de fechar.
-func (u *updater) RestartIfNeeded() {
+func (u *Updater) RestartIfNeeded() {
 	u.mu.Lock()
 	exe := u.restart
 	u.mu.Unlock()

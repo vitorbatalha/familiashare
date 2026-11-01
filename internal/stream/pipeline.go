@@ -1,115 +1,37 @@
-package main
+package stream
+
+// Como a tela vira vídeo: escolha do encoder e parâmetros do FFmpeg.
+//
+// O FFmpeg captura o monitor (filtro ddagrab, Desktop Duplication), codifica e manda
+// RTP para uma porta local; o Host lê esse RTP e repassa via WebRTC. Os parâmetros
+// abaixo foram ajustados à mão e verificados com o benchmark — mudar com cuidado.
 
 import (
-	"bytes"
-	_ "embed"
 	"fmt"
-	"hash/crc32"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
+	"math"
 	"strconv"
-	"sync"
 
-	"github.com/klauspost/compress/zstd"
+	"github.com/vitorbatalha/familiashare/internal/capture"
+	"github.com/vitorbatalha/familiashare/internal/config"
+	"github.com/vitorbatalha/familiashare/internal/ffmpeg"
 )
 
-// FFmpeg vai comprimido dentro do .exe e é extraído na primeira transmissão.
-//
-//go:embed ffmpeg.exe.zst
-var ffmpegZst []byte
-
-var (
-	ffmpegOnce sync.Once
-	ffmpegFile string
-	ffmpegErr  error
-)
-
-func ffmpegPath() (string, error) {
-	ffmpegOnce.Do(func() {
-		name := fmt.Sprintf("ffmpeg-%08x.exe", crc32.ChecksumIEEE(ffmpegZst))
-		ffmpegFile = filepath.Join(dataDir, name)
-		if st, err := os.Stat(ffmpegFile); err == nil && st.Size() > 0 {
-			return
-		}
-		dec, err := zstd.NewReader(bytes.NewReader(ffmpegZst))
-		if err != nil {
-			ffmpegErr = err
-			return
-		}
-		defer dec.Close()
-		tmp := ffmpegFile + ".tmp"
-		f, err := os.Create(tmp)
-		if err != nil {
-			ffmpegErr = err
-			return
-		}
-		_, err = io.Copy(f, dec)
-		f.Close()
-		if err == nil {
-			err = os.Rename(tmp, ffmpegFile)
-		}
-		if err != nil {
-			os.Remove(tmp)
-			ffmpegErr = err
-		}
-		// remove versões antigas
-		old, _ := filepath.Glob(filepath.Join(dataDir, "ffmpeg-*.exe"))
-		for _, o := range old {
-			if o != ffmpegFile {
-				os.Remove(o)
-			}
-		}
-	})
-	return ffmpegFile, ffmpegErr
-}
-
-func ffmpegCmd(args ...string) (*exec.Cmd, error) {
-	p, err := ffmpegPath()
-	if err != nil {
-		return nil, err
+// Kbps é o bitrate de vídeo: o escolhido, ou o automático, proporcional a
+// pixels × fps (1080p60 ≈ 25 Mbps; AV1 precisa de ~25% menos).
+func Kbps(c config.Config, mon capture.Monitor) int {
+	if c.Mbps > 0 {
+		return c.Mbps * 1000
 	}
-	cmd := exec.Command(p, append([]string{"-hide_banner", "-nostdin", "-loglevel", "error"}, args...)...)
-	hideWindow(cmd)
-	return cmd, nil
+	w, h := mon.Width, mon.Height
+	if c.Height > 0 && c.Height < h {
+		w, h = w*c.Height/h, c.Height
+	}
+	k := float64(w*h*c.FPS) * 0.2 / 1000
+	if c.Codec == "av1" {
+		k *= 0.75
+	}
+	return int(math.Max(8000, math.Min(60000, math.Round(k/1000)*1000)))
 }
-
-/* ---------- Encoders de hardware disponíveis ---------- */
-
-var encoderFamilies = []string{"nvenc", "amf", "qsv", "mf"}
-
-var (
-	encOnce  sync.Once
-	encAvail map[string]bool // "h264_nvenc" → true
-)
-
-func availableEncoders() map[string]bool {
-	encOnce.Do(func() {
-		encAvail = map[string]bool{}
-		var mu sync.Mutex
-		var wg sync.WaitGroup
-		for _, fam := range encoderFamilies {
-			for _, codec := range []string{"h264", "av1"} {
-				name := codec + "_" + fam
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
-					cmd, err := ffmpegCmd("-f", "lavfi", "-i", "color=black:s=1280x720:r=30", "-frames:v", "3", "-c:v", name, "-f", "null", "-")
-					if err == nil && cmd.Run() == nil {
-						mu.Lock()
-						encAvail[name] = true
-						mu.Unlock()
-					}
-				}()
-			}
-		}
-		wg.Wait()
-	})
-	return encAvail
-}
-
-/* ---------- Pipeline de vídeo ---------- */
 
 type pipeline struct {
 	enc      string // nvenc|amf|qsv|mf
@@ -130,11 +52,11 @@ func (p pipeline) describe(codec string) string {
 	return s
 }
 
-// candidatePipelines ordena as opções: zero-cópia primeiro (GPU do monitor = GPU do encoder),
-// depois o caminho via CPU com o melhor encoder disponível.
-func candidatePipelines(cfg Config, mon Monitor) []pipeline {
-	avail := availableEncoders()
-	fams := encoderFamilies
+// candidatePipelines ordena as opções: zero-cópia primeiro (GPU do monitor = GPU do
+// encoder), depois o caminho via CPU com o melhor encoder disponível. O Host tenta
+// em ordem até uma funcionar.
+func candidatePipelines(cfg config.Config, mon capture.Monitor, avail map[string]bool) []pipeline {
+	fams := ffmpeg.Families
 	if cfg.Encoder != "" && cfg.Encoder != "auto" {
 		fams = []string{cfg.Encoder}
 	}
@@ -142,7 +64,9 @@ func candidatePipelines(cfg Config, mon Monitor) []pipeline {
 	if cfg.Height > 0 && cfg.Height < mon.Height {
 		scaleH = cfg.Height
 	}
-	vendorOf := map[string]uint32{"nvenc": vendorNVIDIA, "amf": vendorAMD}
+	// redimensionar na GPU não funciona (scale_d3d11 falha com NVENC no FFmpeg 8.1),
+	// então resolução abaixo da nativa sempre passa pela CPU
+	vendorOf := map[string]uint32{"nvenc": capture.VendorNVIDIA, "amf": capture.VendorAMD}
 	var out []pipeline
 	if scaleH == 0 {
 		for _, f := range fams {
@@ -165,9 +89,9 @@ func candidatePipelines(cfg Config, mon Monitor) []pipeline {
 	return out
 }
 
-func videoArgs(p pipeline, cfg Config, mon Monitor, port int) []string {
+func videoArgs(p pipeline, cfg config.Config, mon capture.Monitor, port int) []string {
 	fps := cfg.FPS
-	kbps := cfg.kbps(mon)
+	kbps := Kbps(cfg, mon)
 	a := []string{}
 	if mon.Adapter != 0 {
 		a = append(a, "-init_hw_device", "d3d11va=gpu:"+strconv.Itoa(mon.Adapter), "-filter_hw_device", "gpu")
