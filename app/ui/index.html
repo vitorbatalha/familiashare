@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>familiashare</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0b0c;--fg:#ececec;--mute:#a1a1a8;--line:#26262a;--card:#141416;--foot:#101012;--red:#e5484d;--green:#3dd68c}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Segoe UI",sans-serif;user-select:none;overflow:hidden}
+select,input,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%;min-width:0;outline:none;text-overflow:ellipsis}
+select:focus,input:focus{border-color:#4a4a52}
+button{background:var(--fg);color:var(--bg);font-weight:600;cursor:pointer;border-color:var(--fg);white-space:nowrap;text-align:center}
+button:disabled{opacity:.5;cursor:default}
+button.ghost{background:var(--card);color:var(--fg);border-color:#2c2c31}
+button.small{padding:6px 12px;font-size:12px;width:auto;flex:none}
+button.live{background:var(--red);border-color:var(--red);color:#fff}
+button.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;flex:none;background:var(--card);color:var(--fg);border-color:#2c2c31}
+.row{display:flex;gap:8px;align-items:center;min-width:0}
+.row>input,.row>select{flex:1}
+.row>button{flex:none;width:auto}
+.muted{color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
+.err{color:#ff8a8d;font-size:12px}
+p:empty{display:none}
+h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+
+/* ===== Layout B: cabeçalho, abas, conteúdo e rodapé fixo (nada de rolar para achar botões) ===== */
+#app{height:100%;max-width:560px;margin:0 auto;display:flex;flex-direction:column}
+#top{flex:none;padding:16px 16px 12px;display:flex;align-items:center;gap:10px}
+#top .me{flex:1;min-width:0}
+#myName{all:unset;display:block;width:100%;font-weight:700;font-size:15px;cursor:text;border-radius:6px;padding:1px 4px;margin-left:-4px}
+#myName:hover{background:#18181b}
+#myName:focus{background:#18181b;outline:1px solid #3a3a42}
+#myCode{font-family:ui-monospace,Consolas,monospace;color:var(--fg);user-select:text}
+#tabs{flex:none;margin:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:11px}
+#tabs button{height:36px;border:0;border-radius:8px;background:transparent;color:var(--mute);padding:0 8px;overflow:hidden}
+#tabs button.on{background:var(--fg);color:var(--bg);font-weight:700}
+.count{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:99px;background:var(--red);color:#fff;font-size:11px;line-height:18px}
+.pane{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+#foot{flex:none;padding:12px 16px 16px;border-top:1px solid var(--line);background:var(--foot);display:flex;flex-direction:column;gap:10px}
+#foot .main{height:46px;border-radius:11px;font-size:15px;font-weight:700}
+#foot .row>.main{flex:1;width:auto}
+#foot .row>button:not(.main){height:46px}
+#foot .icon{width:46px;height:46px;border-radius:11px}
+#ver{font-size:11px;color:#55555c;text-align:center;padding:8px 0 0;margin-top:auto}
+
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px}
+.seg button{height:30px;border:0;border-radius:6px;background:transparent;color:var(--mute);padding:0;font-size:12px}
+.seg button.on{background:#2a2a30;color:var(--fg)}
+
+/* listas: só um pontinho de status, sem foto/iniciais */
+.list{display:flex;flex-direction:column;gap:2px;min-width:0}
+.list:empty{display:none}
+.item{display:flex;align-items:center;gap:12px;padding:9px 8px;border-radius:9px;min-width:0}
+.item:hover{background:#121214}
+.item.box{background:#1b1b1f;border:1px solid #33333a}
+.item .who{flex:1;min-width:0}
+.item .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .sub{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .x{all:unset;cursor:pointer;color:var(--mute);padding:0 4px;font-size:16px;flex:none;opacity:0}
+.item:hover .x,.item .x:focus{opacity:1}
+.item .x:hover{color:var(--red)}
+.st{width:9px;height:9px;border-radius:50%;background:#4a4a50;flex:none}
+.st.on{background:var(--green)}
+.st.live{background:var(--red);animation:p 1.6s infinite}
+.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid #2c2c31;color:var(--mute);background:transparent;width:auto;flex:none}
+button.badge:hover{border-color:#4a4a52;color:var(--fg)}
+.head{display:flex;align-items:center;gap:8px}
+.head h2{flex:1}
+.empty{color:var(--mute);text-align:center;padding:40px 12px;line-height:1.6}
+@keyframes p{50%{opacity:.35}}
+
+/* painel de configurações da transmissão (abre por cima, tudo visível de uma vez) */
+#sheet{position:fixed;inset:0;z-index:8;background:#00000099;display:flex;justify-content:flex-end}
+#sheet .panel{width:min(440px,100%);height:100%;background:var(--card);border-left:1px solid #2c2c31;display:flex;flex-direction:column}
+#sheet header{display:flex;align-items:center;padding:16px 18px 10px}
+#sheet header div{flex:1;font-size:17px;font-weight:700}
+#sheet .body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
+#sheet label{display:grid;gap:5px;font-size:12px;color:var(--mute);min-width:0}
+#sheet .full{grid-column:1/-1}
+#sheet select,#sheet input{background:#0f0f11}
+#sheet .check{display:flex;align-items:center;gap:10px;color:var(--fg);font-size:14px;cursor:pointer}
+#sheet .check input{width:18px;height:18px;flex:none;accent-color:var(--fg)}
+#sheet hr{grid-column:1/-1;border:0;height:1px;background:var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#1d1d21;border:1px solid #2c2c31;border-radius:99px;padding:3px 6px 3px 10px;font-size:12px}
+.chip button{all:unset;cursor:pointer;color:var(--mute);padding:0 4px}
+.chip button:hover{color:var(--fg)}
+
+#toasts{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);display:grid;gap:6px;width:min(420px,calc(100% - 32px));z-index:10}
+.toast{background:#1d1d21;border:1px solid #33333a;border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+
+/* ===== Assistir: grade de telas estilo Discord ===== */
+#watch{position:fixed;inset:0;background:#000;z-index:5;display:flex;flex-direction:column}
+#vbar{display:flex;gap:6px;align-items:center;padding:8px;flex-wrap:wrap;transition:opacity .2s}
+#vbar button{background:#1a1a1d;color:#fff;border-color:#33333a;padding:6px 10px;font-size:12px;width:auto;flex:none}
+#vbar button.on{background:#fff;color:#000;border-color:#fff}
+#vbar .sp{flex:1}
+#vbar .lbl{color:var(--mute);font-size:12px;margin:0 2px 0 8px}
+#tiles{flex:1;min-height:0;display:grid;gap:6px;padding:0 6px 6px}
+#tiles.focus{grid-template-rows:minmax(0,1fr) minmax(0,18%)}
+.tile{position:relative;background:#0d0d0f;border-radius:8px;overflow:hidden;min-width:0;min-height:0;cursor:pointer;outline:2px solid transparent;outline-offset:-2px}
+.tile:hover{outline-color:#ffffff22}
+.tile video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+.tile .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);text-align:center;padding:12px;pointer-events:none;font-size:13px}
+.tile .tag{position:absolute;left:8px;bottom:8px;display:flex;gap:6px;align-items:center;max-width:calc(100% - 16px)}
+.tile .tag span{background:#000b;color:#fff;font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .tag button{all:unset;background:#000b;color:#fff;font-size:12px;padding:3px 7px;border-radius:6px;cursor:pointer;flex:none}
+.tile .tag button:hover{background:#000}
+/* volume: o slider aparece ao passar o mouse no botão de som */
+.tile .vol{display:flex;align-items:center;background:#000b;border-radius:6px;flex:none}
+.tile .vol button{background:none}
+.tile .vol input{-webkit-appearance:auto;appearance:auto;width:0;padding:0;margin:0;border:0;background:none;accent-color:#fff;opacity:0;cursor:pointer;transition:width .15s,opacity .15s,margin .15s}
+.tile .vol:hover input,.tile .vol input:focus{width:96px;opacity:1;margin:0 8px 0 2px}
+.tile .stats{position:absolute;left:8px;top:8px;right:8px;font-size:11px;color:#fffc;text-shadow:0 0 4px #000;pointer-events:none;font-variant-numeric:tabular-nums}
+#tiles.focus .tile.small .stats{display:none}
+#wempty{flex:1;display:grid;place-items:center;color:var(--mute)}
+#watch.idle{cursor:none}
+#watch.idle #vbar{opacity:0}
+/* aviso de versão nova */
+#upd{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:#1d1d21;border:1px solid #3a3a42;border-radius:10px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px #0008;width:max-content;max-width:calc(100% - 24px)}
+#upd span{font-size:13px;min-width:0}
+#upd button{width:auto;flex:none;padding:6px 12px;font-size:12px}
+#upd .x{all:unset;cursor:pointer;color:var(--mute);padding:0 6px;font-size:16px}
+#upd .bar{width:120px;height:6px;background:#2a2a30;border-radius:3px;overflow:hidden;flex:none}
+#upd .bar i{display:block;height:100%;background:var(--green);width:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="upd" hidden>
+  <span id="updText"></span>
+  <div class="bar" id="updBar" hidden><i></i></div>
+  <button id="updBtn">Atualizar</button>
+  <button class="ghost" id="updDrive" hidden>Baixar pelo Drive</button>
+  <button class="x" id="updClose" title="Lembrar depois">×</button>
+</div>
+
+<div id="app">
+  <header id="top">
+    <div class="me">
+      <input id="myName" maxlength="32" spellcheck="false" aria-label="Seu nome (clique para mudar)" title="Clique para mudar seu nome">
+      <div class="muted">código <span id="myCode">········</span> <span id="net"></span></div>
+    </div>
+    <button class="icon" id="copyCode" aria-label="Copiar seu código de amigo" title="Copiar seu código de amigo">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+    </button>
+  </header>
+
+  <nav id="tabs">
+    <button data-tab="friends">Amigos<span class="count" id="tabCount" hidden></span></button>
+    <button data-tab="room" id="tabRoom">Sala</button>
+  </nav>
+
+  <!-- aba Amigos -->
+  <section class="pane" id="pFriends">
+    <div class="row">
+      <input id="addCode" placeholder="código do amigo" maxlength="16" spellcheck="false" autocomplete="off" aria-label="Código do amigo">
+      <button class="ghost" id="addFriend">Adicionar</button>
+    </div>
+    <p class="err" id="addErr"></p>
+    <div class="list" id="inbox"></div>
+    <p class="muted" id="joining"></p>
+    <div class="list" id="friends"></div>
+    <p id="ver"></p>
+  </section>
+
+  <!-- aba Sala -->
+  <section class="pane" id="pRoom" hidden>
+    <div class="empty" id="noRoom">Você não está em uma sala.<br>Abra a sua aqui embaixo, ou entre na de um amigo pela aba Amigos.</div>
+    <div id="inRoom" hidden style="display:flex;flex-direction:column;gap:10px">
+      <div class="head"><h2 id="streamsTitle">Transmitindo</h2><button class="badge" id="roomBadge" title=""></button></div>
+      <div class="list" id="streams"></div>
+      <button class="ghost" id="openWatch" hidden>Ver as telas que você está assistindo</button>
+      <div class="head" style="margin-top:8px"><h2>Na sala</h2></div>
+      <div class="list" id="members"></div>
+    </div>
+  </section>
+
+  <!-- rodapé fixo com as ações principais -->
+  <footer id="foot">
+    <div id="footNoRoom" style="display:flex;flex-direction:column;gap:10px">
+      <div class="seg" id="newRoomSeg"><button data-v="1">Pública</button><button data-v="0">Particular</button></div>
+      <button class="main" id="createRoom">Abrir minha sala</button>
+    </div>
+    <div id="footRoom" hidden style="display:flex;flex-direction:column;gap:10px">
+      <div class="muted" id="shareStatus"></div>
+      <p class="err" id="shareErr"></p>
+      <div class="row">
+        <button class="main" id="share" disabled>Preparando…</button>
+        <button class="icon" id="openSettings" aria-label="Configurações da transmissão" title="Configurações da transmissão">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>
+        </button>
+        <button class="ghost" id="leaveRoom" style="width:auto;padding:0 14px">Sair</button>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- configurações da transmissão -->
+<div id="sheet" hidden>
+  <div class="panel" role="dialog" aria-label="Configurações da transmissão">
+    <header><div>Sua transmissão</div><button class="icon" id="closeSettings" aria-label="Fechar" style="width:34px;height:34px">×</button></header>
+    <div class="body">
+      <label class="full">Monitor<select id="monitor"></select></label>
+      <label>Resolução<select id="height"></select></label>
+      <label>FPS<select id="fps"><option value="60">60</option><option value="30">30</option></select></label>
+      <label>Bitrate (por pessoa)<select id="mbps"></select></label>
+      <label>Codec<select id="codec"><option value="h264">H.264</option><option value="av1">AV1</option></select></label>
+      <label class="full">Encoder<select id="encoder"><option value="auto">Automático</option></select></label>
+      <hr>
+      <label class="check full"><input type="checkbox" id="audio"> Transmitir o áudio do PC</label>
+      <div id="audioOpts" class="full" style="display:grid;gap:8px">
+        <div class="muted">Não transmitir o áudio destes apps:</div>
+        <div class="chips" id="chips"></div>
+        <select id="appPick" aria-label="Escolher app com som"><option value="">Escolher app com som…</option></select>
+        <div class="row">
+          <input id="appName" placeholder="ou digite: discord" spellcheck="false" aria-label="Nome do app">
+          <button class="ghost" id="addApp">Adicionar</button>
+        </div>
+      </div>
+      <p class="muted full">As mudanças valem na hora, mesmo transmitindo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= Assistir ================= -->
+<div id="watch" hidden>
+  <div id="vbar">
+    <button id="vback">← Sala</button>
+    <span class="lbl">Transmitindo:</span>
+    <span id="vtabs" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+    <span class="sp"></span>
+    <button id="vgrid" title="Mostrar todas lado a lado">Grade</button>
+    <button id="vfs">Tela cheia (F)</button>
+  </div>
+  <div id="tiles"></div>
+  <div id="wempty" hidden>Escolha acima quem você quer assistir.</div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const ICE = { iceServers: [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }] };
+let S = null;            // último estado vindo do Go
+let cfg = null;          // configurações de transmissão (editadas aqui)
+let newRoomPublic = true;
+let tab = 'friends', wasInRoom = false;
+
+function toast(text) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 5000);
+}
+
+// só troca o HTML se mudou (não atrapalha cliques)
+function setHTML(el, html) { if (typeof el === 'string') el = $(el); if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
+
+/* ================= Estado ================= */
+async function refresh() {
+  try { S = await goState(); } catch (e) { reportError('goState: ' + e); return; }
+  try { render(); } catch (e) { reportError(e.stack || String(e)); }
+}
+let lastErr = '';
+function reportError(msg) {
+  if (msg === lastErr) return;
+  lastErr = msg; toast('Erro na interface: ' + msg.split('\n')[0]); goLog(msg);
+}
+/* ================= Atualização ================= */
+let updDismissed = '';
+const fmtVer = v => v ? `${v.slice(6, 8)}/${v.slice(4, 6)} ${v.slice(9, 11)}:${v.slice(11, 13)}` : '';
+async function renderUpdate() {
+  let u; try { u = await goUpdate(); } catch { return; }
+  $('#ver').textContent = u.current ? `versão de ${fmtVer(u.current)}` : 'versão de desenvolvimento';
+  const show = u.available && (u.busy || u.err || updDismissed !== u.version);
+  $('#upd').hidden = !show; if (!show) return;
+  $('#updBar').hidden = !u.busy; $('#updBar i').style.width = Math.round(u.progress * 100) + '%';
+  $('#updBtn').hidden = u.busy; $('#updClose').hidden = u.busy;
+  $('#updDrive').hidden = !u.err;
+  $('#updBtn').textContent = u.err ? 'Tentar de novo' : 'Atualizar';
+  $('#updText').textContent = u.busy ? `Baixando atualização… ${Math.round(u.progress * 100)}%`
+    : u.err ? `Não deu para atualizar: ${u.err}` : `Nova versão disponível (${fmtVer(u.version)})`;
+}
+$('#updBtn').onclick = () => {
+  if (S && S.host && S.host.state !== 'idle' && !confirm('Atualizar agora encerra sua transmissão e reabre o app. Continuar?')) return;
+  goApplyUpdate(); setTimeout(renderUpdate, 200);
+};
+$('#updDrive').onclick = () => goOpenDrive();
+$('#updClose').onclick = async () => { updDismissed = (await goUpdate()).version; renderUpdate(); };
+
+function render() {
+  renderUpdate();
+  for (const n of S.notices || []) toast(n);
+  if (!cfg) initSettings(S.config);
+  const inRoom = !!S.room;
+  // entrou numa sala: vai para a aba Sala; saiu: volta para Amigos
+  if (inRoom && !wasInRoom) tab = 'room';
+  if (!inRoom && wasInRoom) tab = 'friends';
+  wasInRoom = inRoom;
+  renderHeader(); renderTabs(); renderFriends(); renderRoom(); renderFooter();
+  syncWatch();
+}
+setInterval(refresh, 1000);
+
+/* ================= Cabeçalho e abas ================= */
+function renderHeader() {
+  if (document.activeElement !== $('#myName')) $('#myName').value = S.name;
+  $('#myCode').textContent = S.code;
+  $('#net').textContent = S.net ? '· ' + S.net : '';
+}
+function renderTabs() {
+  for (const b of $$('#tabs button')) b.classList.toggle('on', b.dataset.tab === tab);
+  $('#pFriends').hidden = tab !== 'friends'; $('#pRoom').hidden = tab !== 'room';
+  $('#tabRoom').textContent = S.room ? (S.isOwner ? 'Sua sala' : `Sala de ${S.room.ownerName}`) : 'Sala';
+  const n = S.requests.length + S.invites.length;
+  $('#tabCount').hidden = !n || tab === 'friends'; $('#tabCount').textContent = n;
+}
+for (const b of $$('#tabs button')) b.onclick = () => { tab = b.dataset.tab; if (S) render(); };
+
+$('#myName').onchange = () => { const n = $('#myName').value.trim(); if (n) goSetName(n); };
+$('#myName').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
+$('#copyCode').onclick = () => { navigator.clipboard.writeText(S.code); toast('Código copiado: ' + S.code); };
+
+/* ================= Aba Amigos ================= */
+function renderFriends() {
+  let inbox = '';
+  for (const r of S.requests) inbox += `<div class="item box"><span class="st on"></span><div class="who"><div class="name">${esc(r.name)}</div><div class="sub">quer ser seu amigo · ${esc(r.code)}</div></div>
+    <button class="small" data-act="accept" data-code="${esc(r.code)}">Aceitar</button><button class="ghost small" data-act="reject" data-code="${esc(r.code)}">Recusar</button></div>`;
+  for (const i of S.invites) inbox += `<div class="item box"><span class="st live"></span><div class="who"><div class="name">${esc(i.name)}</div><div class="sub">te convidou para a sala</div></div>
+    <button class="small" data-act="join" data-code="${esc(i.code)}">Entrar</button><button class="ghost small" data-act="decline" data-code="${esc(i.code)}">Recusar</button></div>`;
+  setHTML('#inbox', inbox);
+  $('#joining').textContent = S.joining ? `Entrando na sala de ${S.names[S.joining] || S.joining}…` : '';
+
+  // dono da sala convida direto da lista de amigos
+  const inMyRoom = new Set(S.room ? S.room.members.map(m => m.code) : []), invited = new Set(S.invited);
+  const fr = [...S.friends].sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name));
+  let html = '';
+  for (const f of fr) {
+    let sub = f.online ? 'online' : 'offline', action = '';
+    if (f.room) {
+      const r = f.room, mine = r.owner === f.code;
+      sub = (mine ? (r.public ? 'sala pública' : 'sala particular') : `na sala de ${esc(r.ownerName)}`) +
+        (r.streaming ? ` · ${r.streaming} transmitindo` : ` · ${r.members} ${r.members === 1 ? 'pessoa' : 'pessoas'}`);
+    }
+    if (inMyRoom.has(f.code)) sub = 'nesta sala';
+    else if (S.isOwner && f.online) action = invited.has(f.code) ? '<span class="muted">convidado</span>'
+      : `<button class="ghost small" data-act="invite" data-code="${esc(f.code)}">Convidar</button>`;
+    else if (f.room && f.room.public && S.friends.some(x => x.code === f.room.owner) && !(S.room && S.room.owner === f.room.owner))
+      action = `<button class="small" data-act="join" data-code="${esc(f.room.owner)}">Entrar</button>`;
+    html += `<div class="item"><span class="st ${f.room && f.room.streaming ? 'live' : f.online ? 'on' : ''}"></span>
+      <div class="who"><div class="name">${esc(f.name)}</div><div class="sub">${sub}</div></div>${action}
+      <button class="x" title="Remover amigo" aria-label="Remover ${esc(f.name)}" data-act="remove" data-code="${esc(f.code)}">×</button></div>`;
+  }
+  for (const p of S.pending) html += `<div class="item"><span class="st"></span><div class="who"><div class="name">${esc(p)}</div><div class="sub">aguardando aceitar seu pedido</div></div>
+    <button class="x" title="Cancelar pedido" aria-label="Cancelar pedido" data-act="remove" data-code="${esc(p)}">×</button></div>`;
+  if (!html) html = '<p class="empty">Nenhum amigo ainda.<br>Copie seu código (botão no topo) e passe para alguém, ou adicione o código de um amigo.</p>';
+  setHTML('#friends', html);
+}
+
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const code = b.dataset.code;
+  switch (b.dataset.act) {
+    case 'accept': goAnswerRequest(code, true); break;
+    case 'reject': goAnswerRequest(code, false); break;
+    case 'join': goJoin(code); break;
+    case 'decline': goDeclineInvite(code); break;
+    case 'remove': if (confirm('Remover este amigo?')) goRemoveFriend(code); break;
+    case 'invite': goInvite(code); break;
+    case 'watch': watchAdd(code); break;
+    case 'toggle': sessions.has(code) ? watchRemove(code) : watchAdd(code); break;
+    case 'mute': toggleMute(code); break;
+    case 'close': watchRemove(code); break;
+  }
+  setTimeout(refresh, 150);
+});
+
+$('#addFriend').onclick = async () => {
+  const err = await goAddFriend($('#addCode').value);
+  $('#addErr').textContent = err || '';
+  if (!err) { $('#addCode').value = ''; toast('Pedido de amizade enviado.'); refresh(); }
+};
+$('#addCode').onkeydown = e => { if (e.key === 'Enter') $('#addFriend').click(); };
+
+/* ================= Aba Sala ================= */
+function renderRoom() {
+  const r = S.room;
+  $('#noRoom').hidden = !!r; $('#inRoom').hidden = !r;
+  if (!r) return;
+  const me = S.code, watchers = new Set(S.host.watchers || []);
+  const streams = r.members.filter(m => m.streaming);
+  $('#streamsTitle').textContent = `Transmitindo · ${streams.length}`;
+  const badge = $('#roomBadge');
+  badge.textContent = r.public ? 'pública' : 'particular';
+  badge.disabled = !S.isOwner;
+  badge.title = S.isOwner ? `Clique para tornar ${r.public ? 'particular (só convidados)' : 'pública (amigos entram sem convite)'}` : '';
+
+  let sh = '';
+  for (const m of streams) {
+    const isMe = m.code === me;
+    const sub = isMe ? `você · ${watchers.size} assistindo` : (watchers.has(m.code) ? 'assistindo você também' : '');
+    const action = isMe ? '' : sessions.has(m.code)
+      ? `<button class="ghost small" data-act="watch" data-code="${esc(m.code)}">Assistindo</button>`
+      : `<button class="small" data-act="watch" data-code="${esc(m.code)}">Assistir</button>`;
+    sh += `<div class="item box"><span class="st live"></span><div class="who"><div class="name">${esc(m.name)}</div>
+      <div class="sub">${esc(sub) || 'transmitindo'}</div></div>${action}</div>`;
+  }
+  setHTML('#streams', sh || '<p class="muted" style="padding:4px 2px">Ninguém transmitindo ainda.</p>');
+  $('#openWatch').hidden = sessions.size === 0 || !$('#watch').hidden;
+
+  let mh = '';
+  for (const m of r.members) {
+    const isMe = m.code === me, notes = [];
+    if (m.code === r.owner) notes.push('dono');
+    if (!isMe && watchers.has(m.code)) notes.push('assistindo você');
+    mh += `<div class="item"><span class="st ${m.streaming ? 'live' : 'on'}"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div></div>
+      <span class="muted">${esc(notes.join(' · '))}</span></div>`;
+  }
+  setHTML('#members', mh);
+}
+$('#roomBadge').onclick = () => { if (S.isOwner) { goSetRoomPublic(!S.room.public); setTimeout(refresh, 150); } };
+$('#openWatch').onclick = () => showWatch();
+
+/* ================= Rodapé ================= */
+function renderFooter() {
+  const r = S.room;
+  $('#footNoRoom').hidden = !!r; $('#footRoom').hidden = !r;
+  for (const b of $('#newRoomSeg').children) b.classList.toggle('on', (b.dataset.v === '1') === newRoomPublic);
+  $('#createRoom').title = newRoomPublic ? 'Seus amigos podem entrar sem convite' : 'Só entra quem você convidar';
+  if (!r) return;
+  const h = S.host, live = h.state !== 'idle';
+  if (env) { $('#share').disabled = false; $('#share').textContent = live ? 'Parar transmissão' : 'Compartilhar tela'; }
+  $('#share').classList.toggle('live', live);
+  $('#codec').disabled = live;
+  $('#leaveRoom').textContent = S.isOwner ? 'Encerrar' : 'Sair';
+  let st;
+  if (h.state === 'starting') st = 'Iniciando…';
+  else if (h.state === 'live') st = `Ao vivo: ${h.width}×${h.height} @ ${Math.round(h.fps)} fps · ${h.mbps.toFixed(1)} Mbps` + (h.audio ? ` · áudio: ${h.audio}` : '');
+  else st = 'Sua tela: ' + settingsSummary();
+  $('#shareStatus').textContent = st;
+  const envErr = !env ? '' : env.err ? 'Erro ao preparar o FFmpeg: ' + env.err
+    : !(env.encoders || []).length ? 'Nenhum encoder de vídeo encontrado nesta máquina.' : '';
+  $('#shareErr').textContent = h.err || envErr;
+}
+function settingsSummary() {
+  if (!cfg) return '';
+  const m = monitors[cfg.monitor] || monitors[0];
+  const res = cfg.height ? `${cfg.height}p` : 'Nativa';
+  const br = cfg.mbps ? `${cfg.mbps} Mbps` : 'bitrate automático';
+  const audio = !cfg.audio ? 'sem áudio' : (cfg.exclude || []).length ? `áudio sem ${cfg.exclude.join(', ')}` : 'com áudio';
+  return [res, `${cfg.fps} fps`, br, audio].join(' · ') + (monitors.length > 1 && m ? ` · monitor ${cfg.monitor + 1}` : '');
+}
+
+for (const b of $('#newRoomSeg').children) b.onclick = () => { newRoomPublic = b.dataset.v === '1'; renderFooter(); };
+$('#createRoom').onclick = () => { goCreateRoom(newRoomPublic); setTimeout(refresh, 150); };
+$('#leaveRoom').onclick = () => {
+  if (S.isOwner && S.room.members.length > 1 && !confirm('Encerrar a sala para todos?')) return;
+  closeWatch(); goLeave(); setTimeout(refresh, 150);
+};
+$('#share').onclick = () => {
+  if (S.host.state !== 'idle') goStopShare(); else { $('#shareErr').textContent = ''; goStartShare(readForm()); }
+  setTimeout(refresh, 200);
+};
+$('#openSettings').onclick = () => { $('#sheet').hidden = false; refreshApps(); };
+$('#closeSettings').onclick = () => { $('#sheet').hidden = true; };
+$('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').hidden = true; };
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) $('#sheet').hidden = true; });
+
+/* ================= Configurações da transmissão ================= */
+let monitors = [], env = null;
+
+async function initSettings(c) {
+  cfg = c;
+  monitors = await goMonitors();
+  $('#monitor').innerHTML = monitors.map((m, i) => `<option value="${i}">Monitor ${i + 1} — ${m.width}×${m.height}${m.primary ? ' (principal)' : ''} · ${esc(m.gpu)}</option>`).join('');
+  $('#monitor').value = cfg.monitor < monitors.length ? cfg.monitor : 0;
+  $('#fps').value = cfg.fps; $('#codec').value = cfg.codec; $('#audio').checked = cfg.audio;
+  fillSelects(); renderChips(); refreshApps();
+  $('#audioOpts').hidden = !cfg.audio;
+  waitEnv();
+}
+
+function autoMbps() {
+  const m = monitors[+$('#monitor').value]; if (!m) return 25;
+  let w = m.width, h = m.height; const H = +$('#height').value;
+  if (H && H < h) { w = w * H / h; h = H; }
+  let k = w * h * +$('#fps').value * 0.2 / 1e6; if ($('#codec').value === 'av1') k *= 0.75;
+  return Math.max(8, Math.min(60, Math.round(k)));
+}
+
+function fillSelects() {
+  const m = monitors[+$('#monitor').value] || monitors[0];
+  const hs = $('#height'), cur = hs.value || String(cfg.height);
+  hs.innerHTML = `<option value="0">Nativa ${m ? m.width + '×' + m.height : ''} (recomendado)</option>` +
+    [1440, 1080, 720].filter(h => m && h < m.height).map(h => `<option value="${h}">${h}p (usa CPU)</option>`).join('');
+  hs.value = [...hs.options].some(o => o.value === cur) ? cur : '0';
+  const ms = $('#mbps'), curB = ms.value || String(cfg.mbps);
+  ms.innerHTML = [8, 12, 20, 30, 40, 50, 80].map(b => `<option value="${b}">${b} Mbps${b === 12 ? ' (recomendado)' : ''}</option>`).join('') +
+    `<option value="0">Automático (≈${autoMbps()} Mbps)</option>`;
+  ms.value = [...ms.options].some(o => o.value === curB) ? curB : '12';
+}
+
+function readForm() {
+  return { ...cfg, monitor: +$('#monitor').value, height: +$('#height').value, fps: +$('#fps').value,
+    mbps: +$('#mbps').value, codec: $('#codec').value, encoder: $('#encoder').value, audio: $('#audio').checked,
+    exclude: cfg.exclude || [], roomPublic: newRoomPublic };
+}
+
+async function waitEnv() {
+  const e = await goEnv();
+  if (!e.ready) return setTimeout(waitEnv, 300);
+  env = e;
+  const enc = $('#encoder');
+  const names = { nvenc: 'NVIDIA (NVENC)', amf: 'AMD (AMF)', qsv: 'Intel (QuickSync)', mf: 'Windows Media Foundation' };
+  enc.innerHTML = '<option value="auto">Automático</option>' + (env.encoders || []).map(x => `<option value="${x}">${names[x] || x}</option>`).join('');
+  enc.value = (env.encoders || []).includes(cfg.encoder) ? cfg.encoder : 'auto';
+  const hasAV1 = Object.keys(env.codecs || {}).some(k => k.startsWith('av1_'));
+  $('#codec').querySelector('[value=av1]').disabled = !hasAV1;
+  if (!hasAV1) $('#codec').value = 'h264';
+  if (env.err) $('#shareErr').textContent = 'Erro ao preparar o FFmpeg: ' + env.err;
+  else if (!(env.encoders || []).length) $('#shareErr').textContent = 'Nenhum encoder de vídeo encontrado nesta máquina.';
+}
+
+for (const id of ['monitor', 'height', 'fps', 'mbps', 'codec', 'encoder', 'audio']) {
+  $('#' + id).addEventListener('change', () => {
+    if (id === 'monitor' || id === 'fps' || id === 'codec' || id === 'height') fillSelects();
+    cfg = readForm(); $('#audioOpts').hidden = !cfg.audio;
+    goUpdateShare(cfg); // salva e aplica ao vivo se estiver transmitindo
+  });
+}
+
+function renderChips() {
+  $('#chips').innerHTML = (cfg.exclude || []).map((n, i) => `<span class="chip">${esc(n)}<button data-i="${i}" title="remover">×</button></span>`).join('') ||
+    '<span class="muted">nenhum — todo o áudio do PC é transmitido</span>';
+  for (const b of $('#chips').querySelectorAll('button')) b.onclick = () => {
+    cfg.exclude.splice(+b.dataset.i, 1); renderChips(); goUpdateShare(readForm());
+  };
+}
+function addExclusion(name) {
+  name = name.trim().toLowerCase(); if (!name) return;
+  if (!name.endsWith('.exe')) name += '.exe';
+  cfg.exclude = cfg.exclude || [];
+  if (!cfg.exclude.includes(name)) cfg.exclude.push(name);
+  renderChips(); goUpdateShare(readForm());
+}
+async function refreshApps() {
+  const apps = await goAudioApps();
+  $('#appPick').innerHTML = '<option value="">Escolher app com som…</option>' + apps.map(a => `<option>${esc(a)}</option>`).join('');
+}
+$('#appPick').onfocus = refreshApps;
+$('#appPick').onchange = () => { addExclusion($('#appPick').value); $('#appPick').value = ''; };
+$('#addApp').onclick = () => { addExclusion($('#appName').value); $('#appName').value = ''; };
+$('#appName').onkeydown = e => { if (e.key === 'Enter') $('#addApp').click(); };
+
+/* ================= Assistir: várias telas ao mesmo tempo ================= */
+// Uma sessão por pessoa assistida: { code, pc, tile, video, lastBytes, ping, timers }
+const sessions = new Map();
+let focus = null;        // código em destaque (null = grade com todas do mesmo tamanho)
+let fsOn = false, showStats = true;
+const nameOf = code => (S && S.names[code]) || code;
+
+function showWatch() {
+  if ($('#watch').hidden) { $('#watch').hidden = false; goWatchWindow(true); }
+  layout();
+}
+
+function closeWatch() {
+  for (const code of [...sessions.keys()]) watchRemove(code, true);
+  focus = null;
+  if (fsOn) { goFullscreen(false); fsOn = false; }
+  if (!$('#watch').hidden) { $('#watch').hidden = true; goWatchWindow(false); }
+}
+
+function watchAdd(code) {
+  if (!sessions.has(code)) {
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.innerHTML = `<video playsinline autoplay></video><div class="msg"></div><div class="stats"></div>
+      <div class="tag"><span></span><span class="vol"><button data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)">🔊</button><input type="range" min="0" max="100" title="Volume"></span><button data-act="close" data-code="${esc(code)}" title="Parar de assistir">✕</button></div>`;
+    tile.querySelector('.tag span').textContent = nameOf(code);
+    const s = { code, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
+    const range = tile.querySelector('.vol input');
+    range.value = Math.round((volumes.get(code) ?? 1) * 100);
+    s.video.volume = range.value / 100;
+    range.oninput = () => {
+      const v = range.value / 100;
+      s.video.volume = v; volumes.set(code, v);
+      if (v > 0 && s.muted) toggleMute(code); else updateVolIcon(s); // mexer no volume tira o mudo
+    };
+    const own = e => e.target.closest('button, .vol');
+    tile.onclick = e => { if (!own(e)) { focus = focus === code ? null : code; layout(); } };
+    tile.ondblclick = e => { if (!own(e)) toggleFs(); };
+    sessions.set(code, s);
+    $('#tiles').appendChild(tile);
+    tileMsg(s, `conectando em ${nameOf(code)}…`);
+    const ask = () => { if (sessions.get(code) === s && !s.pc) { goSignal(code, 'watch', '', null); s.timers.push(setTimeout(ask, 6000)); } };
+    ask();
+  }
+  showWatch();
+}
+
+function watchRemove(code, silent) {
+  const s = sessions.get(code); if (!s) return;
+  goSignal(code, 'unwatch', '', null);
+  s.timers.forEach(clearTimeout);
+  if (s.pc) s.pc.close();
+  s.video.srcObject = null; s.tile.remove();
+  sessions.delete(code);
+  if (focus === code) focus = null;
+  if (!silent) layout();
+}
+
+function tileMsg(s, t) { const m = s.tile.querySelector('.msg'); m.textContent = t; m.hidden = !t; }
+
+const volumes = new Map(); // volume escolhido para cada pessoa (vale enquanto o app estiver aberto)
+
+function toggleMute(code) {
+  const s = sessions.get(code); if (!s) return;
+  s.muted = !s.muted; s.video.muted = s.muted;
+  if (!s.muted && s.video.volume === 0) { // desmutar com volume zerado: volta para 50%
+    s.video.volume = 0.5; volumes.set(code, 0.5); s.tile.querySelector('.vol input').value = 50;
+  }
+  updateVolIcon(s);
+}
+
+function updateVolIcon(s) {
+  const v = s.muted ? 0 : s.video.volume;
+  s.tile.querySelector('[data-act=mute]').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+}
+
+// Grade estilo Discord: todas do mesmo tamanho, ou uma em destaque com as outras embaixo.
+function layout() {
+  const tiles = $('#tiles'), list = [...sessions.values()], n = list.length;
+  $('#wempty').hidden = n > 0; tiles.hidden = n === 0;
+  if (focus && !sessions.has(focus)) focus = null;
+  const focused = focus && n > 1;
+  tiles.classList.toggle('focus', !!focused);
+  for (const s of list) {
+    s.tile.classList.toggle('small', !!focused && s.code !== focus);
+    s.tile.style.gridColumn = focused && s.code === focus ? '1 / -1' : '';
+    s.tile.style.gridRow = focused ? (s.code === focus ? '1' : '2') : '';
+  }
+  if (focused) {
+    tiles.style.gridTemplateColumns = `repeat(${n - 1}, minmax(0,1fr))`;
+    tiles.style.gridTemplateRows = '';
+  } else {
+    const W = tiles.clientWidth || innerWidth, H = tiles.clientHeight || innerHeight;
+    let best = 1, bestArea = 0; // escolhe o número de colunas que deixa cada tela 16:9 maior
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c), w = W / c, h = H / r, area = Math.min(w, h * 16 / 9) * Math.min(h, w * 9 / 16);
+      if (area > bestArea) { bestArea = area; best = c; }
+    }
+    tiles.style.gridTemplateColumns = `repeat(${best}, minmax(0,1fr))`;
+    tiles.style.gridTemplateRows = `repeat(${Math.ceil(n / best)}, minmax(0,1fr))`;
+  }
+  $('#vgrid').hidden = !focused;
+  renderWatchBar();
+}
+addEventListener('resize', () => { if (!$('#watch').hidden) layout(); });
+
+function renderWatchBar() {
+  if (!S || !S.room) return;
+  const streams = S.room.members.filter(m => m.streaming && m.code !== S.code);
+  setHTML('#vtabs', streams.map(m => `<button class="${sessions.has(m.code) ? 'on' : ''}" data-act="toggle" data-code="${esc(m.code)}" title="${sessions.has(m.code) ? 'Parar de assistir' : 'Assistir'}">${esc(m.name)}</button>`).join('')
+    || '<span class="muted">ninguém</span>');
+}
+
+// Mantém as sessões de acordo com a sala: quem parou de transmitir sai da grade.
+function syncWatch() {
+  if (!S.room) { if (sessions.size || !$('#watch').hidden) closeWatch(); return; }
+  for (const s of sessions.values()) {
+    s.tile.querySelector('.tag span').textContent = nameOf(s.code);
+    const m = S.room.members.find(x => x.code === s.code);
+    if (!m || !m.streaming) streamEnded(s);
+  }
+  if (!$('#watch').hidden) renderWatchBar();
+}
+
+function streamEnded(s) {
+  if (s.ending) return;
+  s.ending = true;
+  tileMsg(s, `${nameOf(s.code)} parou de transmitir`);
+  if (s.pc) { s.pc.close(); s.pc = null; }
+  s.video.srcObject = null;
+  setTimeout(() => { if (sessions.get(s.code) === s) watchRemove(s.code); }, 2500);
+}
+
+window.onSignal = async ev => {
+  if (ev.kind === 'left') { closeWatch(); return; }
+  const s = sessions.get(ev.src); if (!s) return;
+  if (ev.kind === 'bye' || ev.kind === 'gone') { streamEnded(s); return; }
+  if (ev.kind === 'cand' && s.pc) { s.pc.addIceCandidate(ev.candidate).catch(() => {}); return; }
+  if (ev.kind !== 'offer') return;
+  s.ending = false;
+  if (s.pc) s.pc.close();
+  const pc = s.pc = new RTCPeerConnection(ICE), stream = new MediaStream();
+  pc.ontrack = e => {
+    if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = 0; // latência mínima
+    stream.addTrack(e.track);
+    if (s.video.srcObject === stream) return; // a 2ª trilha (áudio) entra no mesmo stream: não recarregar o vídeo
+    s.video.srcObject = stream; s.video.muted = s.muted;
+    s.video.play().catch(err => {
+      if (err.name !== 'NotAllowedError') return; // só silencia se o navegador realmente bloqueou o som
+      s.muted = false; toggleMute(s.code); s.video.play();
+    });
+  };
+  pc.onicecandidate = e => e.candidate && goSignal(s.code, 'cand', '', e.candidate.toJSON());
+  pc.onconnectionstatechange = () => {
+    if (s.pc !== pc) return;
+    if (pc.connectionState === 'connected') tileMsg(s, s.video.videoWidth ? '' : 'aguardando o primeiro quadro…');
+    if (pc.connectionState === 'failed') {
+      tileMsg(s, 'não foi possível conectar (rede restritiva?) · tentando de novo…');
+      pc.close(); s.pc = null;
+      setTimeout(() => sessions.get(s.code) === s && goSignal(s.code, 'watch', '', null), 2000);
+    }
+  };
+  s.video.onresize = s.video.onplaying = () => { if (s.video.videoWidth) tileMsg(s, ''); };
+  await pc.setRemoteDescription({ type: 'offer', sdp: ev.sdp });
+  const ans = await pc.createAnswer();
+  const pt = (ans.sdp.match(/a=rtpmap:(\d+) opus\/48000/i) || [])[1]; // pede Opus estéreo
+  if (pt) ans.sdp = ans.sdp.replace(new RegExp(`a=fmtp:${pt} (.*)`), (l, x) => /stereo=1/.test(x) ? l : `${l};stereo=1;sprop-stereo=1`);
+  await pc.setLocalDescription(ans);
+  goSignal(s.code, 'answer', pc.localDescription.sdp, null);
+};
+
+setInterval(async () => {
+  for (const s of sessions.values()) {
+    const el = s.tile.querySelector('.stats');
+    if (!s.pc || !showStats) { el.textContent = ''; continue; }
+    const stats = await s.pc.getStats().catch(() => null); if (!stats) continue;
+    let out = '';
+    stats.forEach(r => {
+      if (r.type === 'inbound-rtp' && r.kind === 'video' && r.frameWidth) {
+        const rate = r.bytesReceived - s.lastBytes; s.lastBytes = r.bytesReceived;
+        const codec = stats.get(r.codecId)?.mimeType?.split('/')[1] ?? '';
+        const buf = r.jitterBufferEmittedCount ? Math.round(r.jitterBufferDelay / r.jitterBufferEmittedCount * 1000) : 0;
+        const lost = r.packetsLost && r.packetsReceived ? (100 * r.packetsLost / (r.packetsLost + r.packetsReceived)).toFixed(2) : '0';
+        out = `${r.frameWidth}×${r.frameHeight} · ${Math.round(r.framesPerSecond ?? 0)} fps · ${(rate * 8 / 1e6).toFixed(1)} Mbps · ${codec} · buffer ${buf} ms · perda ${lost}%`;
+      }
+      if (r.type === 'transport') {
+        const pair = stats.get(r.selectedCandidatePairId);
+        if (pair?.currentRoundTripTime != null) s.ping = Math.round(pair.currentRoundTripTime * 1000);
+      }
+    });
+    el.textContent = out + (out && s.ping != null ? ` · ping ${s.ping} ms` : '');
+  }
+}, 1000);
+
+const toggleFs = async () => { fsOn = await goFullscreen(!fsOn); setTimeout(layout, 100); };
+$('#vfs').onclick = toggleFs;
+$('#vgrid').onclick = () => { focus = null; layout(); };
+$('#vback').onclick = () => { if (fsOn) toggleFs(); $('#watch').hidden = true; goWatchWindow(false); refresh(); };
+addEventListener('keydown', e => {
+  if ($('#watch').hidden || e.target.matches('input')) return;
+  if (e.key === 'f' || e.key === 'F' || e.key === 'F11') { e.preventDefault(); toggleFs(); }
+  else if (e.key === 'm' || e.key === 'M') { const anyOn = [...sessions.values()].some(s => !s.muted); for (const s of sessions.values()) if (s.muted === !anyOn) toggleMute(s.code); }
+  else if (e.key === 'i' || e.key === 'I') showStats = !showStats;
+  else if (e.key === 'Escape') { if (fsOn) toggleFs(); else $('#vback').click(); }
+});
+let idle;
+$('#watch').onmousemove = () => { $('#watch').classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => $('#watch').classList.add('idle'), 2500); };
+
+refresh();
+</script>
+</body>
+</html>

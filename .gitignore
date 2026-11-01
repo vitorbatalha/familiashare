@@ -1,0 +1,21 @@
+# Binários gerados pelo build
+*.exe
+*.exe.new
+*.exe.old
+
+# FFmpeg comprimido (baixado pelo script de build; nunca versionado — 50 MB)
+*.zst
+
+# Recurso de ícone do Windows (gerado a partir de assets/icon.png pelo build)
+*.syso
+
+# Interface: dependências e saída do build
+node_modules/
+dist/
+
+# Editores / sistema
+.vscode/
+.idea/
+*.log
+Thumbs.db
+.DS_Store
