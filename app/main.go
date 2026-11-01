@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +45,10 @@ func main() {
 
 	if os.Getenv("TELA_AUDIOTEST") != "" { // modo de teste: mede o volume capturado
 		audioTest()
+		return
+	}
+	if s, err := strconv.Atoi(os.Getenv("FAMILIASHARE_BENCH")); err == nil && s > 0 { // ver bench.go
+		runBench(s)
 		return
 	}
 
