@@ -1,6 +1,4 @@
-package main
-
-// Amigos, presença e salas — sem servidor próprio.
+// Package social cuida de amigos, presença e salas — sem servidor próprio.
 //
 // Cada pessoa fica conectada ao servidor de sinalização com o seu código de amigo.
 //   - Amizade: A envia "fr-req" para o código de B; B aceita ("fr-acc"); os dois guardam.
@@ -10,6 +8,9 @@ package main
 //     particular = só convidados), e manda o estado ("room") a todos os membros.
 //   - Transmissão: qualquer membro transmite; quem quer assistir manda "watch" direto
 //     para quem transmite, e a negociação WebRTC acontece entre os dois.
+//
+// As mensagens estão documentadas em docs/PROTOCOL.md.
+package social
 
 import (
 	"encoding/json"
@@ -19,6 +20,9 @@ import (
 	"time"
 
 	"github.com/pion/webrtc/v4"
+	"github.com/vitorbatalha/familiashare/internal/config"
+	"github.com/vitorbatalha/familiashare/internal/signaling"
+	"github.com/vitorbatalha/familiashare/internal/stream"
 )
 
 const (
@@ -28,6 +32,26 @@ const (
 	roomTimeout   = 35 * time.Second
 	joinTimeout   = 12 * time.Second
 )
+
+// Net é o que o Service precisa da sinalização (na prática, *signaling.Node).
+type Net interface {
+	stream.Signaler
+	Status() string
+	SendAnswer(dst, sdp string) error
+}
+
+// Streamer é o que o Service precisa do transmissor (na prática, *stream.Host).
+type Streamer interface {
+	Start(cfg config.Config, n stream.Signaler) error
+	Update(cfg config.Config)
+	Stop()
+	Stats() stream.Stats
+	HandleWatch(id string)
+	HandleUnwatch(id string)
+	HandleAnswer(id, sdp string)
+	HandleCandidate(id string, c webrtc.ICECandidateInit)
+	KeepOnly(allowed map[string]bool)
+}
 
 type RoomInfo struct {
 	Owner     string `json:"owner"`
@@ -61,11 +85,14 @@ func (r *Room) member(code string) *Member {
 	return nil
 }
 
-type App struct {
+// Service é o estado social desta pessoa.
+type Service struct {
 	mu       sync.Mutex
-	cfg      Config
-	net      *node
-	host     *Host
+	cfg      config.Config
+	save     func(config.Config) // grava a config (chamado com mu travado)
+	net      Net
+	ready    chan struct{} // fecha quando net está definido
+	host     Streamer
 	toUI     func(event map[string]any) // eventos de WebRTC para o espectador (JS)
 	lastSeen map[string]time.Time       // amigo → última mensagem
 	friendAt map[string]*RoomInfo       // amigo → sala em que está
@@ -77,32 +104,42 @@ type App struct {
 	notices  []string
 }
 
-func newApp(cfg Config, toUI func(map[string]any)) *App {
-	a := &App{
-		cfg: cfg, host: newHost(), toUI: toUI,
+// New cria o Service. Depois, conecte a sinalização e chame Run:
+//
+//	svc := social.New(cfg, save, host, toUI)
+//	node := signaling.Start(cfg.MyCode, svc.OnMessage, svc.OnConnected)
+//	svc.Run(node)
+func New(cfg config.Config, save func(config.Config), host Streamer, toUI func(map[string]any)) *Service {
+	return &Service{
+		cfg: cfg, save: save, host: host, toUI: toUI, ready: make(chan struct{}),
 		lastSeen: map[string]time.Time{}, friendAt: map[string]*RoomInfo{},
 		requests: map[string]string{}, invites: map[string]string{},
 	}
-	a.net = startNode(cfg.MyCode, a.onMsg, a.onConnected)
-	go a.tick()
-	return a
 }
 
-func (a *App) notice(s string) { a.notices = append(a.notices, s) } // com a.mu travado
+// Run liga o Service à sinalização e começa o ciclo de presença.
+func (a *Service) Run(n Net) {
+	a.net = n
+	close(a.ready)
+	go a.tick()
+}
 
-func (a *App) Notice(s string) {
+func (a *Service) notice(s string) { a.notices = append(a.notices, s) } // com a.mu travado
+
+// Notice mostra um aviso na interface.
+func (a *Service) Notice(s string) {
 	a.mu.Lock()
 	a.notice(s)
 	a.mu.Unlock()
 }
 
-func (a *App) save() { saveConfig(a.cfg) } // com a.mu travado
+func (a *Service) persist() { a.save(a.cfg) } // com a.mu travado
 
-func (a *App) isFriend(code string) bool {
-	return slices.ContainsFunc(a.cfg.Friends, func(f Friend) bool { return f.Code == code })
+func (a *Service) isFriend(code string) bool {
+	return slices.ContainsFunc(a.cfg.Friends, func(f config.Friend) bool { return f.Code == code })
 }
 
-func (a *App) friendName(code string) string {
+func (a *Service) friendName(code string) string {
 	for _, f := range a.cfg.Friends {
 		if f.Code == code {
 			return f.Name
@@ -118,9 +155,13 @@ func (a *App) friendName(code string) string {
 
 /* ---------- Ciclo: presença, pedidos pendentes, saúde da sala ---------- */
 
-func (a *App) onConnected() { a.pingAll() }
+// OnConnected é chamado a cada (re)conexão com o servidor.
+func (a *Service) OnConnected() {
+	<-a.ready
+	a.pingAll()
+}
 
-func (a *App) tick() {
+func (a *Service) tick() {
 	lastPing, lastRoom := time.Now(), time.Now()
 	for range time.Tick(time.Second) {
 		a.mu.Lock()
@@ -146,7 +187,7 @@ func (a *App) tick() {
 	}
 }
 
-func (a *App) myRoomInfo() *RoomInfo { // com a.mu travado
+func (a *Service) myRoomInfo() *RoomInfo { // com a.mu travado
 	r := a.room
 	if r == nil {
 		return nil
@@ -165,7 +206,7 @@ type hello struct {
 	Room *RoomInfo `json:"room,omitempty"`
 }
 
-func (a *App) pingAll() {
+func (a *Service) pingAll() {
 	a.mu.Lock()
 	h := hello{a.cfg.Name, a.myRoomInfo()}
 	friends := slices.Clone(a.cfg.Friends)
@@ -181,7 +222,9 @@ func (a *App) pingAll() {
 
 /* ---------- Mensagens recebidas ---------- */
 
-func (a *App) onMsg(m inMsg) {
+// OnMessage trata uma mensagem recebida pela sinalização.
+func (a *Service) OnMessage(m signaling.Message) {
+	<-a.ready
 	src := m.Src
 	switch m.Kind {
 	case "EXPIRE": // src está offline
@@ -249,13 +292,13 @@ func (a *App) onMsg(m inMsg) {
 	}
 }
 
-func (a *App) canWatchMe(src string) bool {
+func (a *Service) canWatchMe(src string) bool {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.room != nil && a.room.member(src) != nil
 }
 
-func (a *App) onControl(src, t string, d json.RawMessage) {
+func (a *Service) onControl(src, t string, d json.RawMessage) {
 	var h hello
 	json.Unmarshal(d, &h)
 	a.mu.Lock()
@@ -379,46 +422,47 @@ func (a *App) onControl(src, t string, d json.RawMessage) {
 }
 
 // sendLater prepara um envio para depois de soltar a.mu.
-func (a *App) sendLater(dst, t string, d any) func() {
+func (a *Service) sendLater(dst, t string, d any) func() {
 	return func() { a.net.Send(dst, t, d) }
 }
 
 /* ---------- Amigos ---------- */
 
-func (a *App) addFriendLocked(code, name string) {
+func (a *Service) addFriendLocked(code, name string) {
 	a.cfg.Pending = slices.DeleteFunc(a.cfg.Pending, func(c string) bool { return c == code })
 	delete(a.requests, code)
 	if !a.isFriend(code) {
-		a.cfg.Friends = append(a.cfg.Friends, Friend{Code: code, Name: name})
+		a.cfg.Friends = append(a.cfg.Friends, config.Friend{Code: code, Name: name})
 	}
 	a.renameFriendLocked(code, name)
 	a.lastSeen[code] = time.Now()
-	a.save()
+	a.persist()
 }
 
-func (a *App) renameFriendLocked(code, name string) {
+func (a *Service) renameFriendLocked(code, name string) {
 	if name == "" {
 		return
 	}
 	for i := range a.cfg.Friends {
 		if a.cfg.Friends[i].Code == code && a.cfg.Friends[i].Name != name {
 			a.cfg.Friends[i].Name = name
-			a.save()
+			a.persist()
 		}
 	}
 }
 
-func (a *App) removeFriendLocked(code string) {
-	a.cfg.Friends = slices.DeleteFunc(a.cfg.Friends, func(f Friend) bool { return f.Code == code })
+func (a *Service) removeFriendLocked(code string) {
+	a.cfg.Friends = slices.DeleteFunc(a.cfg.Friends, func(f config.Friend) bool { return f.Code == code })
 	a.cfg.Pending = slices.DeleteFunc(a.cfg.Pending, func(c string) bool { return c == code })
 	delete(a.lastSeen, code)
 	delete(a.friendAt, code)
 	delete(a.invites, code)
-	a.save()
+	a.persist()
 }
 
-func (a *App) AddFriend(code string) string {
-	code = normCode(code)
+// AddFriend manda um pedido de amizade. Devolve uma mensagem de erro ou "".
+func (a *Service) AddFriend(code string) string {
+	code = config.NormCode(code)
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	switch {
@@ -436,13 +480,14 @@ func (a *App) AddFriend(code string) string {
 	}
 	if !slices.Contains(a.cfg.Pending, code) {
 		a.cfg.Pending = append(a.cfg.Pending, code)
-		a.save()
+		a.persist()
 	}
 	go a.net.Send(code, "fr-req", hello{Name: a.cfg.Name})
 	return ""
 }
 
-func (a *App) AnswerRequest(code string, accept bool) {
+// AnswerRequest aceita ou recusa um pedido de amizade recebido.
+func (a *Service) AnswerRequest(code string, accept bool) {
 	a.mu.Lock()
 	name, ok := a.requests[code]
 	delete(a.requests, code)
@@ -456,18 +501,20 @@ func (a *App) AnswerRequest(code string, accept bool) {
 	}
 }
 
-func (a *App) RemoveFriend(code string) {
+// RemoveFriend desfaz a amizade (ou cancela um pedido enviado).
+func (a *Service) RemoveFriend(code string) {
 	a.mu.Lock()
 	a.removeFriendLocked(code)
 	a.mu.Unlock()
 	a.net.Send(code, "fr-del", nil)
 }
 
-func (a *App) SetName(name string) {
+// SetName troca o nome mostrado aos amigos.
+func (a *Service) SetName(name string) {
 	a.mu.Lock()
 	if name != "" && len([]rune(name)) <= 32 {
 		a.cfg.Name = name
-		a.save()
+		a.persist()
 	}
 	a.mu.Unlock()
 	a.pingAll()
@@ -475,26 +522,28 @@ func (a *App) SetName(name string) {
 
 /* ---------- Salas ---------- */
 
-func (a *App) CreateRoom(public bool) {
+// CreateRoom abre a sala desta pessoa (saindo da atual, se houver).
+func (a *Service) CreateRoom(public bool) {
 	a.mu.Lock()
 	if a.room != nil {
 		a.leaveLocked(true)
 	}
 	a.cfg.RoomPublic = public
-	a.save()
+	a.persist()
 	a.room = &Room{Owner: a.cfg.MyCode, OwnerName: a.cfg.Name, Public: public,
 		Members: []Member{{Code: a.cfg.MyCode, Name: a.cfg.Name}}, invited: map[string]bool{}}
 	a.mu.Unlock()
 	a.pingAll()
 }
 
-func (a *App) SetRoomPublic(public bool) {
+// SetRoomPublic troca a sala própria entre pública e particular.
+func (a *Service) SetRoomPublic(public bool) {
 	a.mu.Lock()
 	ok := a.room != nil && a.room.Owner == a.cfg.MyCode
 	if ok {
 		a.room.Public = public
 		a.cfg.RoomPublic = public
-		a.save()
+		a.persist()
 	}
 	a.mu.Unlock()
 	if ok {
@@ -503,7 +552,8 @@ func (a *App) SetRoomPublic(public bool) {
 	}
 }
 
-func (a *App) Invite(code string) {
+// Invite convida um amigo para a sala própria.
+func (a *Service) Invite(code string) {
 	a.mu.Lock()
 	ok := a.room != nil && a.room.Owner == a.cfg.MyCode && a.isFriend(code)
 	if ok {
@@ -516,13 +566,15 @@ func (a *App) Invite(code string) {
 	}
 }
 
-func (a *App) DeclineInvite(owner string) {
+// DeclineInvite descarta um convite recebido.
+func (a *Service) DeclineInvite(owner string) {
 	a.mu.Lock()
 	delete(a.invites, owner)
 	a.mu.Unlock()
 }
 
-func (a *App) Join(owner string) {
+// Join pede para entrar na sala de owner.
+func (a *Service) Join(owner string) {
 	a.mu.Lock()
 	if a.room != nil {
 		if a.room.Owner == owner {
@@ -537,7 +589,8 @@ func (a *App) Join(owner string) {
 	a.net.Send(owner, "join", hello{Name: name})
 }
 
-func (a *App) Leave() {
+// Leave sai da sala (o dono, ao sair, encerra a sala).
+func (a *Service) Leave() {
 	a.mu.Lock()
 	a.leaveLocked(true)
 	a.mu.Unlock()
@@ -545,7 +598,7 @@ func (a *App) Leave() {
 }
 
 // leaveLocked sai da sala atual (como dono, encerra a sala para todos).
-func (a *App) leaveLocked(notify bool) {
+func (a *Service) leaveLocked(notify bool) {
 	r := a.room
 	if r == nil {
 		return
@@ -570,12 +623,12 @@ func (a *App) leaveLocked(notify bool) {
 	}
 }
 
-func (a *App) removeMemberLocked(code string) {
+func (a *Service) removeMemberLocked(code string) {
 	a.room.Members = slices.DeleteFunc(a.room.Members, func(m Member) bool { return m.Code == code })
 	go a.host.HandleUnwatch(code)
 }
 
-func (a *App) broadcastRoom() {
+func (a *Service) broadcastRoom() {
 	a.mu.Lock()
 	r := a.room
 	if r == nil || r.Owner != a.cfg.MyCode {
@@ -593,7 +646,8 @@ func (a *App) broadcastRoom() {
 
 /* ---------- Transmitir na sala ---------- */
 
-func (a *App) StartShare(cfg Config) error {
+// StartShare começa a transmitir (abrindo a sala própria, se não estiver em nenhuma).
+func (a *Service) StartShare(cfg config.Config) error {
 	a.mu.Lock()
 	if a.room == nil {
 		a.mu.Unlock()
@@ -610,12 +664,13 @@ func (a *App) StartShare(cfg Config) error {
 	return nil
 }
 
-func (a *App) StopShare() {
+// StopShare para de transmitir.
+func (a *Service) StopShare() {
 	a.host.Stop()
 	a.setStreaming(false)
 }
 
-func (a *App) setStreaming(on bool) {
+func (a *Service) setStreaming(on bool) {
 	a.mu.Lock()
 	r := a.room
 	if r == nil {
@@ -638,7 +693,7 @@ func (a *App) setStreaming(on bool) {
 }
 
 // UpdateShare salva as configurações de transmissão e aplica ao vivo.
-func (a *App) UpdateShare(cfg Config) {
+func (a *Service) UpdateShare(cfg config.Config) {
 	a.mu.Lock()
 	a.mergeShareSettings(cfg)
 	cfg = a.cfg
@@ -646,15 +701,15 @@ func (a *App) UpdateShare(cfg Config) {
 	a.host.Update(cfg)
 }
 
-func (a *App) mergeShareSettings(c Config) { // com a.mu travado
+func (a *Service) mergeShareSettings(c config.Config) { // com a.mu travado
 	a.cfg.Monitor, a.cfg.Height, a.cfg.FPS, a.cfg.Mbps = c.Monitor, c.Height, c.FPS, c.Mbps
 	a.cfg.Codec, a.cfg.Encoder, a.cfg.Audio, a.cfg.Exclude = c.Codec, c.Encoder, c.Audio, c.Exclude
-	a.cfg.normalize()
-	a.save()
+	a.cfg.Normalize()
+	a.persist()
 }
 
-// SignalFromUI: mensagens WebRTC do espectador (JS) para quem transmite.
-func (a *App) SignalFromUI(dst, kind, sdp string, cand *webrtc.ICECandidateInit) {
+// SignalFromUI repassa mensagens WebRTC do espectador (JS) para quem transmite.
+func (a *Service) SignalFromUI(dst, kind, sdp string, cand *webrtc.ICECandidateInit) {
 	switch kind {
 	case "watch", "unwatch":
 		a.net.Send(dst, kind, nil)
@@ -676,32 +731,37 @@ type friendView struct {
 	Room   *RoomInfo `json:"room,omitempty"`
 }
 
+// State é tudo que a interface mostra (consultado a cada segundo).
 type State struct {
 	Name     string            `json:"name"`
 	Code     string            `json:"code"`
 	Net      string            `json:"net"`
 	Friends  []friendView      `json:"friends"`
-	Requests []Friend          `json:"requests"`
+	Requests []config.Friend   `json:"requests"`
 	Pending  []string          `json:"pending"`
-	Invites  []Friend          `json:"invites"`
+	Invites  []config.Friend   `json:"invites"`
 	Room     *Room             `json:"room"`
 	IsOwner  bool              `json:"isOwner"`
 	Invited  []string          `json:"invited"`
 	Joining  string            `json:"joining"`
-	Host     Stats             `json:"host"`
+	Host     stream.Stats      `json:"host"`
 	Notices  []string          `json:"notices"`
 	Names    map[string]string `json:"names"`
-	Config   Config            `json:"config"`
+	Config   config.Config     `json:"config"`
 }
 
-func (a *App) State() State {
+// State devolve o estado atual (e consome os avisos pendentes).
+func (a *Service) State() State {
 	hostStats := a.host.Stats()
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// listas sempre como [] (nunca null) para a interface
-	s := State{Name: a.cfg.Name, Code: a.cfg.MyCode, Net: a.net.Status(), Pending: append([]string{}, a.cfg.Pending...),
+	s := State{Name: a.cfg.Name, Code: a.cfg.MyCode, Pending: append([]string{}, a.cfg.Pending...),
 		Joining: a.joining, Host: hostStats, Notices: a.notices, Names: map[string]string{}, Config: a.cfg,
-		Friends: []friendView{}, Requests: []Friend{}, Invites: []Friend{}, Invited: []string{}}
+		Friends: []friendView{}, Requests: []config.Friend{}, Invites: []config.Friend{}, Invited: []string{}}
+	if a.net != nil {
+		s.Net = a.net.Status()
+	}
 	if s.Notices == nil {
 		s.Notices = []string{}
 	}
@@ -717,10 +777,10 @@ func (a *App) State() State {
 		s.Names[f.Code] = f.Name
 	}
 	for code, name := range a.requests {
-		s.Requests = append(s.Requests, Friend{code, name})
+		s.Requests = append(s.Requests, config.Friend{Code: code, Name: name})
 	}
 	for owner, name := range a.invites {
-		s.Invites = append(s.Invites, Friend{owner, name})
+		s.Invites = append(s.Invites, config.Friend{Code: owner, Name: name})
 	}
 	if a.room != nil {
 		r := *a.room
@@ -737,7 +797,8 @@ func (a *App) State() State {
 	return s
 }
 
-func (a *App) Shutdown() {
+// Shutdown sai da sala (avisando os outros) e para a transmissão.
+func (a *Service) Shutdown() {
 	a.mu.Lock()
 	a.leaveLocked(true)
 	a.mu.Unlock()

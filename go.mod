@@ -1,4 +1,4 @@
-module tela
+module github.com/vitorbatalha/familiashare
 
 go 1.27.2
 
