@@ -106,6 +106,12 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .pref:last-child{border-bottom:0}
 .pref b{font-size:14px}
 .pref button{width:auto;justify-self:start}
+.radios{display:grid;gap:6px}
+.radios label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer}
+.radios label:has(input:checked){border-color:#4a4a52;background:#141416}
+.radios input{width:16px;height:16px;flex:none;margin:2px 0 0;padding:0;accent-color:var(--fg)}
+.radios em{font-style:normal;color:var(--mute);font-size:12px}
+.radios small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
 
 /* quem está assistindo a sua transmissão (rodapé) */
 #statusRow{position:relative;display:flex;align-items:center;gap:8px;min-width:0}
@@ -282,13 +288,13 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
     <section id="prefGeneral">
       <h1>Geral</h1>
       <div class="pref">
-        <b>Ao fechar a janela</b>
-        <select id="onClose" aria-label="Ao fechar a janela">
-          <option value="tray">Ficar perto do relógio</option>
-          <option value="minimize">Minimizar</option>
-          <option value="quit">Fechar o app</option>
-        </select>
-        <span class="muted">Assim seus amigos continuam vendo você online. Para sair de vez: botão direito no ícone perto do relógio → Sair, ou o botão abaixo.</span>
+        <b id="onCloseLbl">Quando você fecha a janela</b>
+        <div class="radios" id="onClose" role="radiogroup" aria-labelledby="onCloseLbl">
+          <label><input type="radio" name="onClose" value="tray"><span>Esconder na bandeja <em>(recomendado)</em><small>O app continua aberto, com o ícone ao lado do relógio, e seus amigos continuam vendo você online. Clique no ícone para voltar.</small></span></label>
+          <label><input type="radio" name="onClose" value="minimize"><span>Minimizar na barra de tarefas<small>Fechar de novo, com a janela já minimizada, encerra o app.</small></span></label>
+          <label><input type="radio" name="onClose" value="quit"><span>Encerrar o app<small>Você fica offline para os seus amigos.</small></span></label>
+        </div>
+        <span class="muted">Para encerrar de vez a qualquer momento: botão direito no ícone ao lado do relógio → Sair, ou o botão "Sair do familiashare" abaixo.</span>
       </div>
       <div class="pref">
         <b>Diagnóstico</b>
@@ -421,7 +427,7 @@ function showPrefs(on) {
   if (on) { renderPrefs(); loadNews(); }
 }
 function renderPrefs() {
-  if (S) $('#onClose').value = S.config.onClose || 'tray';
+  if (S) for (const r of $$('#onClose input')) r.checked = r.value === (S.config.onClose || 'tray');
   for (const b of $$('#prefs nav button')) b.classList.toggle('on', b.dataset.pref === prefTab);
   $('#prefGeneral').hidden = prefTab !== 'general'; $('#prefNews').hidden = prefTab !== 'news';
   $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
@@ -442,7 +448,7 @@ async function loadNews() {
     '</div>').join('') || '<p class="muted">Sem novidades registradas.</p>';
 }
 for (const b of $$('#prefs nav button')) b.onclick = () => { prefTab = b.dataset.pref; renderPrefs(); };
-$('#onClose').onchange = () => { goSetOnClose($('#onClose').value); setTimeout(refresh, 150); };
+for (const r of $$('#onClose input')) r.onchange = () => { goSetOnClose(r.value); setTimeout(refresh, 150); };
 $('#openLogs').onclick = () => goOpenLogs();
 $('#quitApp').onclick = () => {
   if (S && S.host.state !== 'idle' && !confirm('Sair encerra sua transmissão. Continuar?')) return;
