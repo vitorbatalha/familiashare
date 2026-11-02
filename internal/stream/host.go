@@ -9,7 +9,6 @@ package stream
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
@@ -47,6 +46,7 @@ type Stats struct {
 }
 
 type viewer struct {
+	n       int // número do espectador no log (nunca o código de amigo)
 	pc      *webrtc.PeerConnection
 	pending []webrtc.ICECandidateInit // candidatos que chegaram antes da resposta
 	hasDesc bool
@@ -68,6 +68,11 @@ type Host struct {
 	aeng     *audio.Engine
 	goodPipe string // último pipeline que funcionou
 	stats    Stats
+
+	// para o log
+	started    time.Time
+	viewerNum  map[string]int // código → número do espectador nesta transmissão
+	maxViewers int
 }
 
 func New() *Host { return &Host{stats: Stats{State: "idle"}} }
@@ -115,12 +120,17 @@ func (h *Host) Running() bool {
 }
 
 // Start começa a transmitir com as configurações dadas.
-func (h *Host) Start(cfg config.Config, n Signaler) error {
+func (h *Host) Start(cfg config.Config, n Signaler) (err error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.cancel != nil {
 		return errors.New("já está transmitindo")
 	}
+	defer func() {
+		if err != nil {
+			logf("não iniciou: %v", err)
+		}
+	}()
 	h.net = n
 	cfg.Normalize()
 	mons := capture.ListMonitors()
@@ -131,6 +141,7 @@ func (h *Host) Start(cfg config.Config, n Signaler) error {
 		cfg.Monitor = 0
 	}
 	h.cfg, h.mon = cfg, mons[cfg.Monitor]
+	logf("início · %s", settingsLine(cfg, h.mon, cfg.Monitor, len(mons)))
 
 	// Só o codec escolhido é oferecido; Opus estéreo para o áudio.
 	m := &webrtc.MediaEngine{}
@@ -166,6 +177,7 @@ func (h *Host) Start(cfg config.Config, n Signaler) error {
 	h.video = &forwarder{track: vt, clock: 90000, t0: t0, pace: &pacer{last: t0}}
 	h.audio = &forwarder{track: at, clock: 48000, t0: t0}
 	h.viewers = map[string]*viewer{}
+	h.viewerNum, h.maxViewers, h.started = map[string]int{}, 0, t0
 	h.ctx, h.cancel = context.WithCancel(context.Background())
 	h.stats = Stats{State: "starting"}
 
@@ -189,8 +201,13 @@ func (h *Host) Update(cfg config.Config) {
 	old := h.cfg
 	cfg.Codec = old.Codec
 	h.cfg = cfg
-	if mons := capture.ListMonitors(); cfg.Monitor < len(mons) {
+	mons := capture.ListMonitors()
+	if cfg.Monitor < len(mons) {
 		h.mon = mons[cfg.Monitor]
+	}
+	if cfg.Height != old.Height || cfg.FPS != old.FPS || cfg.Mbps != old.Mbps || cfg.Encoder != old.Encoder || cfg.Monitor != old.Monitor ||
+		cfg.Audio != old.Audio || len(cfg.Exclude) != len(old.Exclude) {
+		logf("configurações mudaram · %s", settingsLine(cfg, h.mon, cfg.Monitor, len(mons)))
 	}
 	if cfg.Height != old.Height || cfg.FPS != old.FPS || cfg.Mbps != old.Mbps || cfg.Encoder != old.Encoder || cfg.Monitor != old.Monitor {
 		if cfg.Encoder != old.Encoder || cfg.Monitor != old.Monitor {
@@ -226,6 +243,8 @@ func (h *Host) Stop() {
 	}
 	n, viewers := h.net, h.viewers
 	h.viewers = map[string]*viewer{}
+	logf("encerrada após %s · %d quadros enviados · até %d assistindo ao mesmo tempo",
+		fmtDur(time.Since(h.started)), h.video.frames.Load(), h.maxViewers)
 	h.stats = Stats{State: "idle"}
 	h.mu.Unlock()
 	for id, v := range viewers {
@@ -271,7 +290,7 @@ func (h *Host) HandleAnswer(id, sdp string) {
 		return
 	}
 	if err := v.pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: sdp}); err != nil {
-		log.Printf("answer %s: %v", id, err)
+		logf("espectador %d: resposta WebRTC inválida: %v", v.n, err)
 		h.dropViewer(id, v)
 		return
 	}
@@ -310,16 +329,26 @@ func (h *Host) HandleWatch(id string) {
 	api, n, old := h.api, h.net, h.viewers[id]
 	vtrack, atrack := h.video.track, h.audio.track
 	me := n.Me()
+	num, seen := h.viewerNum[id]
+	if !seen {
+		num = len(h.viewerNum) + 1
+		h.viewerNum[id] = num
+	}
 	h.mu.Unlock()
+	if seen {
+		logf("espectador %d pediu para assistir de novo", num)
+	} else {
+		logf("espectador %d pediu para assistir", num)
+	}
 	if old != nil {
 		h.dropViewer(id, old)
 	}
 	pc, err := api.NewPeerConnection(webrtc.Configuration{ICEServers: iceServers})
 	if err != nil {
-		log.Printf("peerconnection: %v", err)
+		logf("espectador %d: erro ao criar conexão: %v", num, err)
 		return
 	}
-	v := &viewer{pc: pc}
+	v := &viewer{n: num, pc: pc}
 	for _, t := range []webrtc.TrackLocal{vtrack, atrack} {
 		tr, err := pc.AddTransceiverFromTrack(t, webrtc.RTPTransceiverInit{Direction: webrtc.RTPTransceiverDirectionSendonly})
 		if err != nil {
@@ -339,20 +368,28 @@ func (h *Host) HandleWatch(id string) {
 			n.SendCandidate(id, me, c.ToJSON())
 		}
 	})
+	t0 := time.Now()
 	pc.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {
+		switch s {
+		case webrtc.PeerConnectionStateConnected:
+			logf("espectador %d conectado em %s (%s)", num, fmtDur(time.Since(t0)), route(pc))
+		case webrtc.PeerConnectionStateDisconnected, webrtc.PeerConnectionStateFailed:
+			logf("espectador %d: conexão %s após %s", num, s, fmtDur(time.Since(t0)))
+		}
 		if s == webrtc.PeerConnectionStateFailed || s == webrtc.PeerConnectionStateClosed {
 			h.dropViewer(id, v)
 		}
 	})
 	h.mu.Lock()
 	h.viewers[id] = v
+	h.maxViewers = max(h.maxViewers, len(h.viewers))
 	h.mu.Unlock()
 	offer, err := pc.CreateOffer(nil)
 	if err == nil {
 		err = pc.SetLocalDescription(offer)
 	}
 	if err != nil {
-		log.Printf("offer: %v", err)
+		logf("espectador %d: erro ao criar a oferta: %v", num, err)
 		h.dropViewer(id, v)
 		return
 	}
@@ -361,9 +398,13 @@ func (h *Host) HandleWatch(id string) {
 
 func (h *Host) dropViewer(id string, v *viewer) {
 	h.mu.Lock()
-	if h.viewers[id] == v {
+	gone := h.viewers[id] == v
+	if gone {
 		delete(h.viewers, id)
 	}
 	h.mu.Unlock()
+	if gone {
+		logf("espectador %d saiu", v.n)
+	}
 	go v.pc.Close()
 }
