@@ -138,5 +138,5 @@ Versões seguem **0.x.y**: `x` sobe em mudanças relevantes, `y` em ajustes e co
    ```
 
 3. O workflow [Release](.github/workflows/release.yml) roda os testes, compila o `.exe`
-   com a versão e publica o Release com as notas do changelog. Em até 6 h o app dos
+   com a versão e publica o Release com as notas do changelog. Em até 3 h (ou assim que voltarem à janela) o app dos
    amigos avisa que há versão nova.
