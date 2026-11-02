@@ -96,7 +96,7 @@ o WebRTC funcionar.
 
 ## Atualização
 
-O build de release grava a versão (`0.x.y`) no programa. Ao abrir e a cada 6 h, o app
+O build de release grava a versão (`0.x.y`) no programa. Ao abrir, a cada 3 h e quando a janela volta ao primeiro plano, o app
 consulta a API do GitHub pelo último release (pré-lançamentos, como o do FFmpeg, ficam de
 fora) e, se for mais novo, avisa. Ao atualizar, baixa o `familiashare.exe` do release,
 confere tamanho e SHA-256 com o que o GitHub informa, renomeia o `.exe` atual para `.old`

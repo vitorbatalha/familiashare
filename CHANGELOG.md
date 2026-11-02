@@ -8,6 +8,14 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.2.2] — 2026-11-02
+
+### Alterado
+- O app procura atualizações a cada 3 horas e sempre que você volta para a janela (antes
+  era só ao abrir e a cada 6 horas).
+- Opção "Quando você fecha a janela" (Configurações → Geral) com textos mais claros:
+  esconder na bandeja, minimizar na barra de tarefas ou encerrar o app.
+
 ## [0.2.1] — 2026-11-02
 
 ### Adicionado
@@ -47,6 +55,7 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 - Atualização automática.
 - Imagem codificada pela placa de vídeo (NVIDIA, AMD, Intel), até 60 fps; 12 Mbps por padrão.
 
-[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.2.1...HEAD
+[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.2
 [0.2.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.1
 [0.2.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.0
