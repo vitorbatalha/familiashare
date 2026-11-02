@@ -217,6 +217,30 @@ func TestPrivateRoomRequiresInvite(t *testing.T) {
 	}
 }
 
+func TestPrivateRoomHiddenFromFriends(t *testing.T) {
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")
+	befriend(t, ana, beto)
+	anaRoom := func() *RoomInfo {
+		for _, f := range beto.State().Friends {
+			if f.Code == ana.code {
+				return f.Room
+			}
+		}
+		return nil
+	}
+	ana.CreateRoom(true)
+	ana.pingAll()
+	eventually(t, "Beto vê a sala pública da Ana", func() bool { return anaRoom() != nil })
+
+	ana.SetRoomPublic(false)
+	ana.pingAll()
+	eventually(t, "a sala some quando fica particular", func() bool { return anaRoom() == nil })
+	if f := beto.State().Friends[0]; !f.Online {
+		t.Error("Ana continua aparecendo online")
+	}
+}
+
 func TestOwnerLeavingClosesRoom(t *testing.T) {
 	b := newBus()
 	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")

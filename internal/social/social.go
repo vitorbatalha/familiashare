@@ -187,9 +187,11 @@ func (a *Service) tick() {
 	}
 }
 
+// myRoomInfo é a sala anunciada aos amigos na presença. Sala particular não é
+// anunciada: para os amigos, quem está nela aparece só como online.
 func (a *Service) myRoomInfo() *RoomInfo { // com a.mu travado
 	r := a.room
-	if r == nil {
+	if r == nil || !r.Public {
 		return nil
 	}
 	info := &RoomInfo{Owner: r.Owner, OwnerName: r.OwnerName, Public: r.Public, Members: len(r.Members)}
@@ -331,6 +333,9 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 	case "ping", "pong":
 		if a.isFriend(src) {
 			a.lastSeen[src] = time.Now()
+			if h.Room != nil && !h.Room.Public {
+				h.Room = nil // versões até a 0.2.2 ainda anunciam a sala particular
+			}
 			a.friendAt[src] = h.Room
 			a.renameFriendLocked(src, h.Name)
 			if t == "ping" {

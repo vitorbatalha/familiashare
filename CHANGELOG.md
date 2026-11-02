@@ -8,6 +8,10 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+### Alterado
+- Sala particular agora é mais discreta: seus amigos veem você só como online, sem saber
+  que está numa sala (antes aparecia "sala particular" na lista deles).
+
 ## [0.2.2] — 2026-11-02
 
 ### Alterado
