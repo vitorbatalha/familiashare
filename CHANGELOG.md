@@ -8,16 +8,16 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.3.0] — 2026-11-02
+
 ### Adicionado
-- Visual novo: a janela ganhou barra de título própria, com botões de minimizar,
-  maximizar e fechar no estilo do Windows, e o app ganhou um toque de cor — laranja nos
-  botões principais e no olhinho de quem está assistindo, e texto num branco mais quente.
-  Arrastar, clicar duas vezes para maximizar e encaixar a janela nos cantos continuam
-  funcionando.
+- Visual: agora o aplicativo tem uma barra própria, com botões de minimizar, maximizar e
+  fechar no estilo do Windows.
+- Visual: laranja em alguns botões, e texto num branco mais quente.
 
 ### Alterado
-- Sala particular agora é mais discreta: seus amigos veem você só como online, sem saber
-  que está numa sala (antes aparecia "sala particular" na lista deles).
+- Sala particular: seus amigos veem você só como online, sem saber que está numa sala
+  (antes aparecia "sala particular" na lista deles).
 
 ## [0.2.2] — 2026-11-02
 
@@ -66,7 +66,8 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 - Atualização automática.
 - Imagem codificada pela placa de vídeo (NVIDIA, AMD, Intel), até 60 fps; 12 Mbps por padrão.
 
-[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.2.2...HEAD
+[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.0
 [0.2.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.2
 [0.2.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.1
 [0.2.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.0
