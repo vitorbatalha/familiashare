@@ -32,7 +32,9 @@ h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;let
 #myName{all:unset;display:block;width:100%;font-weight:700;font-size:15px;cursor:text;border-radius:6px;padding:1px 4px;margin-left:-4px}
 #myName:hover{background:#18181b}
 #myName:focus{background:#18181b;outline:1px solid #3a3a42}
-#myCode{font-family:ui-monospace,Consolas,monospace;color:var(--fg);user-select:text}
+#myCode{font-family:ui-monospace,Consolas,monospace;color:var(--fg);cursor:pointer;border-radius:5px;padding:1px 5px;margin-left:-2px;text-decoration:underline dotted #55555c;text-underline-offset:3px}
+#myCode:hover{background:#1d1d21}
+#copied{color:var(--green);font-size:11px;margin-left:4px}
 #tabs{flex:none;margin:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:11px}
 #tabs button{height:36px;border:0;border-radius:8px;background:transparent;color:var(--mute);padding:0 8px;overflow:hidden}
 #tabs button.on{background:var(--fg);color:var(--bg);font-weight:700}
@@ -88,6 +90,27 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .chip button{all:unset;cursor:pointer;color:var(--mute);padding:0 4px}
 .chip button:hover{color:var(--fg)}
 
+/* configurações do app (engrenagem): categorias à esquerda, conteúdo à direita, estilo Discord */
+#prefs{position:fixed;inset:0;z-index:9;background:var(--bg);display:flex}
+#prefs nav{width:150px;flex:none;background:var(--foot);border-right:1px solid var(--line);padding:18px 8px 14px;display:flex;flex-direction:column;gap:2px}
+#prefs nav h2{padding:0 10px 8px}
+#prefs nav button{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;color:var(--mute)}
+#prefs nav button:hover{background:#18181b;color:var(--fg)}
+#prefs nav button.on{background:#232328;color:var(--fg)}
+#prefs nav .v{margin-top:auto;padding:0 10px;font-size:11px;color:#55555c}
+#prefs main{flex:1;min-width:0;overflow-y:auto;padding:18px 18px 24px;position:relative;scrollbar-width:thin;scrollbar-color:#33333a transparent}
+#prefs main h1{font-size:18px;margin:0 44px 14px 0}
+#prefsClose{all:unset;cursor:pointer;position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid #3a3a42;border-radius:50%;display:grid;place-items:center;color:var(--mute);font-size:16px}
+#prefsClose:hover{color:var(--fg);border-color:var(--mute)}
+.wip{border:1px dashed #33333a;border-radius:11px;padding:28px 16px;text-align:center;color:var(--mute);line-height:1.6}
+.rel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px}
+.rel .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.rel .top b{font-size:15px}
+.rel .now{font-size:11px;padding:1px 8px;border-radius:99px;background:#1f3a2c;color:var(--green)}
+.rel h3{font-size:11px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px}
+.rel ul{margin:0;padding-left:18px;color:#cfcfd4;user-select:text}
+.rel li{margin-bottom:3px}
+
 #toasts{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);display:grid;gap:6px;width:min(420px,calc(100% - 32px));z-index:10}
 .toast{background:#1d1d21;border:1px solid #33333a;border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s}
 @keyframes in{from{opacity:0;transform:translateY(6px)}}
@@ -135,7 +158,7 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
   <span id="updText"></span>
   <div class="bar" id="updBar" hidden><i></i></div>
   <button id="updBtn">Atualizar</button>
-  <button class="ghost" id="updDrive" hidden>Baixar pelo Drive</button>
+  <button class="ghost" id="updManual" hidden>Baixar no GitHub</button>
   <button class="x" id="updClose" title="Lembrar depois">×</button>
 </div>
 
@@ -143,10 +166,10 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
   <header id="top">
     <div class="me">
       <input id="myName" maxlength="32" spellcheck="false" aria-label="Seu nome (clique para mudar)" title="Clique para mudar seu nome">
-      <div class="muted">código <span id="myCode">········</span> <span id="net"></span></div>
+      <div class="muted">código <span id="myCode" role="button" tabindex="0" title="Clique para copiar">········</span><span id="copied" hidden>✓ copiado</span> <span id="net"></span></div>
     </div>
-    <button class="icon" id="copyCode" aria-label="Copiar seu código de amigo" title="Copiar seu código de amigo">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+    <button class="icon" id="openPrefs" aria-label="Configurações" title="Configurações">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
     </button>
   </header>
 
@@ -227,6 +250,27 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
   </div>
 </div>
 
+<!-- configurações do app -->
+<div id="prefs" hidden role="dialog" aria-label="Configurações">
+  <nav>
+    <h2>Configurações</h2>
+    <button data-pref="general">Geral</button>
+    <button data-pref="news">Novidades</button>
+    <div class="v" id="prefsVer"></div>
+  </nav>
+  <main>
+    <button id="prefsClose" aria-label="Fechar (Esc)" title="Fechar (Esc)">✕</button>
+    <section id="prefGeneral">
+      <h1>Geral</h1>
+      <div class="wip">Em construção.<br>As opções do app vão aparecer aqui nas próximas versões.</div>
+    </section>
+    <section id="prefNews" hidden>
+      <h1>Novidades</h1>
+      <div id="news"></div>
+    </section>
+  </main>
+</div>
+
 <!-- ================= Assistir ================= -->
 <div id="watch" hidden>
   <div id="vbar">
@@ -273,24 +317,25 @@ function reportError(msg) {
 }
 /* ================= Atualização ================= */
 let updDismissed = '';
-const fmtVer = v => v ? `${v.slice(6, 8)}/${v.slice(4, 6)} ${v.slice(9, 11)}:${v.slice(11, 13)}` : '';
+let myVersion = '';
 async function renderUpdate() {
   let u; try { u = await goUpdate(); } catch { return; }
-  $('#ver').textContent = u.current ? `versão de ${fmtVer(u.current)}` : 'versão de desenvolvimento';
+  myVersion = u.current;
+  $('#ver').textContent = u.current ? `versão ${u.current}` : 'versão de desenvolvimento';
   const show = u.available && (u.busy || u.err || updDismissed !== u.version);
   $('#upd').hidden = !show; if (!show) return;
   $('#updBar').hidden = !u.busy; $('#updBar i').style.width = Math.round(u.progress * 100) + '%';
   $('#updBtn').hidden = u.busy; $('#updClose').hidden = u.busy;
-  $('#updDrive').hidden = !u.err;
+  $('#updManual').hidden = !u.err;
   $('#updBtn').textContent = u.err ? 'Tentar de novo' : 'Atualizar';
   $('#updText').textContent = u.busy ? `Baixando atualização… ${Math.round(u.progress * 100)}%`
-    : u.err ? `Não deu para atualizar: ${u.err}` : `Nova versão disponível (${fmtVer(u.version)})`;
+    : u.err ? `Não deu para atualizar: ${u.err}` : `Nova versão disponível: ${u.version}`;
 }
 $('#updBtn').onclick = () => {
   if (S && S.host && S.host.state !== 'idle' && !confirm('Atualizar agora encerra sua transmissão e reabre o app. Continuar?')) return;
   goApplyUpdate(); setTimeout(renderUpdate, 200);
 };
-$('#updDrive').onclick = () => goOpenDrive();
+$('#updManual').onclick = () => goOpenReleases();
 $('#updClose').onclick = async () => { updDismissed = (await goUpdate()).version; renderUpdate(); };
 
 function render() {
@@ -324,7 +369,46 @@ for (const b of $$('#tabs button')) b.onclick = () => { tab = b.dataset.tab; if 
 
 $('#myName').onchange = () => { const n = $('#myName').value.trim(); if (n) goSetName(n); };
 $('#myName').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
-$('#copyCode').onclick = () => { navigator.clipboard.writeText(S.code); toast('Código copiado: ' + S.code); };
+let copiedTimer;
+function copyCode() {
+  if (!S) return;
+  navigator.clipboard.writeText(S.code);
+  $('#copied').hidden = false;
+  clearTimeout(copiedTimer); copiedTimer = setTimeout(() => $('#copied').hidden = true, 2000);
+}
+$('#myCode').onclick = copyCode;
+$('#myCode').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); copyCode(); } };
+
+/* ================= Configurações do app ================= */
+let prefTab = 'general', newsLoaded = false;
+function showPrefs(on) {
+  $('#prefs').hidden = !on;
+  if (on) { renderPrefs(); loadNews(); }
+}
+function renderPrefs() {
+  for (const b of $$('#prefs nav button')) b.classList.toggle('on', b.dataset.pref === prefTab);
+  $('#prefGeneral').hidden = prefTab !== 'general'; $('#prefNews').hidden = prefTab !== 'news';
+  $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
+}
+// "2026-11-01" → "1 nov 2026"; "2026-10" → "out 2026"
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function fmtDate(d) {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(d || ''); if (!m) return d || '';
+  return [m[3] ? +m[3] : '', MONTHS[+m[2] - 1], m[1]].filter(Boolean).join(' ');
+}
+async function loadNews() {
+  if (newsLoaded) return;
+  let rs; try { rs = await goChangelog(); } catch { return; }
+  newsLoaded = true;
+  $('#news').innerHTML = (rs || []).map(r => `<div class="rel"><div class="top"><b>${esc(r.version)}</b>` +
+    (r.version === myVersion ? '<span class="now">sua versão</span>' : '') + `<span class="muted">${esc(fmtDate(r.date))}</span></div>` +
+    r.sections.map(s => (s.title ? `<h3>${esc(s.title)}</h3>` : '') + `<ul>${s.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('') +
+    '</div>').join('') || '<p class="muted">Sem novidades registradas.</p>';
+}
+for (const b of $$('#prefs nav button')) b.onclick = () => { prefTab = b.dataset.pref; renderPrefs(); };
+$('#openPrefs').onclick = () => showPrefs(true);
+$('#prefsClose').onclick = () => showPrefs(false);
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#prefs').hidden) showPrefs(false); });
 
 /* ================= Aba Amigos ================= */
 function renderFriends() {
@@ -358,7 +442,7 @@ function renderFriends() {
   }
   for (const p of S.pending) html += `<div class="item"><span class="st"></span><div class="who"><div class="name">${esc(p)}</div><div class="sub">aguardando aceitar seu pedido</div></div>
     <button class="x" title="Cancelar pedido" aria-label="Cancelar pedido" data-act="remove" data-code="${esc(p)}">×</button></div>`;
-  if (!html) html = '<p class="empty">Nenhum amigo ainda.<br>Copie seu código (botão no topo) e passe para alguém, ou adicione o código de um amigo.</p>';
+  if (!html) html = '<p class="empty">Nenhum amigo ainda.<br>Clique no seu código (no topo) para copiar e passe para alguém, ou adicione o código de um amigo.</p>';
   setHTML('#friends', html);
 }
 

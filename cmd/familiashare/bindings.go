@@ -12,8 +12,10 @@ import (
 
 	webview2 "github.com/jchv/go-webview2"
 	"github.com/pion/webrtc/v4"
+	"github.com/vitorbatalha/familiashare"
 	"github.com/vitorbatalha/familiashare/internal/audio"
 	"github.com/vitorbatalha/familiashare/internal/capture"
+	"github.com/vitorbatalha/familiashare/internal/changelog"
 	"github.com/vitorbatalha/familiashare/internal/config"
 	"github.com/vitorbatalha/familiashare/internal/ffmpeg"
 	"github.com/vitorbatalha/familiashare/internal/social"
@@ -121,8 +123,10 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater) {
 		}
 	})
 
-	// atualização
+	// atualização e novidades
 	w.Bind("goUpdate", func() update.State { return upd.State() })
 	w.Bind("goApplyUpdate", func() { go upd.Apply() })
-	w.Bind("goOpenDrive", func() { winapi.OpenURL(update.DriveViewURL) })
+	w.Bind("goOpenReleases", func() { winapi.OpenURL(update.ReleasesURL) })
+	notes := changelog.Parse(familiashare.Changelog)
+	w.Bind("goChangelog", func() []changelog.Release { return notes })
 }
