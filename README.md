@@ -66,7 +66,7 @@ em HTML/JS rodando no WebView2, e usa o **FFmpeg** embutido para capturar e codi
 - [CHANGELOG.md](CHANGELOG.md) — o que mudou em cada versão
 
 ```powershell
-.\scripts\build.ps1 -Dev    # gera dist\familiashare.exe
+.\scripts\build.ps1         # gera dist\familiashare.exe
 go test ./...               # testes automáticos
 ```
 

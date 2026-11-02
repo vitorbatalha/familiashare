@@ -22,12 +22,12 @@ O app só roda no **Windows 10 (2004+) ou 11** (usa APIs do Windows para captura
 ## Compilar e rodar
 
 ```powershell
-.\scripts\build.ps1 -Dev      # dist\familiashare.exe, sem etiqueta de versão
+.\scripts\build.ps1           # dist\familiashare.exe de desenvolvimento
 .\dist\familiashare.exe
 ```
 
-`-Dev` pula a etiqueta de versão (o app não procura atualizações). Sem `-Dev` sai o
-build de release (ver [Lançando uma versão](#lançando-uma-versão)).
+O build de desenvolvimento não tem versão e não procura atualizações. Builds com
+versão saem do GitHub (ver [Lançando uma versão](#lançando-uma-versão)).
 
 O log fica em `%LOCALAPPDATA%\familiashare\familiashare.log` e, se o app fechar sozinho,
 o motivo vai para `crash.log` na mesma pasta.
@@ -51,7 +51,7 @@ Outras variáveis úteis:
 | `FAMILIASHARE_DEBUG=1` | habilita as ferramentas de desenvolvedor do WebView2 (clique direito → Inspecionar) |
 | `FAMILIASHARE_AUDIOTEST=1` | mede o volume capturado a cada segundo (com `FAMILIASHARE_EXCLUDE=discord` testa a exclusão de apps) |
 | `FAMILIASHARE_BENCH=20` | benchmark de transmissão (ver abaixo) |
-| `FAMILIASHARE_UPDATE_URL` | aponta a atualização para outro endereço (testes locais) |
+| `FAMILIASHARE_UPDATE_URL` | troca a API de releases do GitHub por outro endereço que responda o mesmo JSON (para testar a atualização com um build `-Version 0.0.1`) |
 
 ## Testes
 
@@ -75,7 +75,7 @@ Mudanças em `internal/stream`, `internal/audio` ou `internal/ffmpeg` devem vir 
 benchmark antes/depois na descrição do pull request:
 
 ```powershell
-.\scripts\build.ps1 -Dev
+.\scripts\build.ps1
 .\scripts\bench.ps1 -Encoders nvenc,amf -Seconds 20
 ```
 
@@ -94,6 +94,7 @@ versões com a mesma coisa aberta, intercalando as rodadas.
 4. Abra o pull request contra a `main` explicando **o que** e **por quê**. O CI compila e
    roda os testes; a `main` só recebe mudanças por pull request.
 5. Adicione uma linha em `CHANGELOG.md` (seção "Não lançado") se a mudança afeta quem usa.
+   Esse texto aparece no app (Configurações → Novidades): escreva para os amigos.
 
 ### Estilo
 
@@ -116,9 +117,18 @@ versões com a mesma coisa aberta, intercalando as rodadas.
 
 ## Lançando uma versão
 
-> Em transição: hoje o app ainda se atualiza pelo Google Drive. A publicação automática
-> pelo GitHub Releases vem na versão 0.2.
+Versões seguem **0.x.y**: `x` sobe em mudanças relevantes, `y` em ajustes e consertos.
 
-1. Atualize o `CHANGELOG.md`.
-2. `.\scripts\build.ps1` (sem `-Dev`): gera `dist\familiashare.exe` com a etiqueta de versão.
-3. Publique o arquivo no link do Drive (substituindo o anterior).
+1. No `CHANGELOG.md`, renomeie "Não lançado" para `## [0.x.y] — aaaa-mm-dd`, crie um
+   "Não lançado" vazio em cima e atualize os links do fim do arquivo. Faça isso num pull
+   request e junte na `main`.
+2. Crie e envie a tag na `main`:
+
+   ```powershell
+   git tag v0.x.y
+   git push origin v0.x.y
+   ```
+
+3. O workflow [Release](.github/workflows/release.yml) roda os testes, compila o `.exe`
+   com a versão e publica o Release com as notas do changelog. Em até 6 h o app dos
+   amigos avisa que há versão nova.
