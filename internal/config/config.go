@@ -23,6 +23,10 @@ type Config struct {
 	Pending    []string `json:"pending"` // pedidos de amizade enviados, ainda não aceitos
 	RoomPublic bool     `json:"roomPublic"`
 
+	// app
+	OnClose      string `json:"onClose"`      // botão de fechar: tray | minimize | quit
+	TrayHintSeen bool   `json:"trayHintSeen"` // já avisou que o app continua perto do relógio
+
 	// transmissão
 	Monitor int      `json:"monitor"` // índice em capture.ListMonitors()
 	Height  int      `json:"height"`  // 0 = nativa
@@ -47,6 +51,9 @@ func (c *Config) Normalize() {
 	}
 	if c.Encoder == "" {
 		c.Encoder = "auto"
+	}
+	if c.OnClose != "minimize" && c.OnClose != "quit" {
+		c.OnClose = "tray"
 	}
 	if c.MyCode == "" {
 		c.MyCode = NewCode()

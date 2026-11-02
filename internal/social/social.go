@@ -520,6 +520,35 @@ func (a *Service) SetName(name string) {
 	a.pingAll()
 }
 
+// SetOnClose escolhe o que o botão de fechar faz: "tray", "minimize" ou "quit".
+func (a *Service) SetOnClose(v string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cfg.OnClose = v
+	a.cfg.Normalize()
+	a.persist()
+}
+
+// OnClose é o que o botão de fechar faz (ver SetOnClose).
+func (a *Service) OnClose() string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.cfg.OnClose
+}
+
+// FirstTrayHide diz se é a primeira vez que o app vai para perto do relógio (para
+// avisar a pessoa só uma vez) e registra que já foi.
+func (a *Service) FirstTrayHide() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cfg.TrayHintSeen {
+		return false
+	}
+	a.cfg.TrayHintSeen = true
+	a.persist()
+	return true
+}
+
 /* ---------- Salas ---------- */
 
 // CreateRoom abre a sala desta pessoa (saindo da atual, se houver).

@@ -102,7 +102,19 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 #prefs main h1{font-size:18px;margin:0 44px 14px 0}
 #prefsClose{all:unset;cursor:pointer;position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid #3a3a42;border-radius:50%;display:grid;place-items:center;color:var(--mute);font-size:16px}
 #prefsClose:hover{color:var(--fg);border-color:var(--mute)}
-.wip{border:1px dashed #33333a;border-radius:11px;padding:28px 16px;text-align:center;color:var(--mute);line-height:1.6}
+.pref{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}
+.pref:last-child{border-bottom:0}
+.pref b{font-size:14px}
+.pref button{width:auto;justify-self:start}
+
+/* quem está assistindo a sua transmissão (rodapé) */
+#statusRow{position:relative;display:flex;align-items:center;gap:8px;min-width:0}
+#statusRow .muted{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#eye{all:unset;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;background:#1d1d21;border:1px solid #3a3a42;font-size:12px;font-variant-numeric:tabular-nums}
+#eye:hover,#eye.on{border-color:var(--mute)}
+#eyePop{position:absolute;left:0;bottom:calc(100% + 8px);z-index:4;background:#1d1d21;border:1px solid #3a3a42;border-radius:10px;padding:8px;min-width:190px;max-width:100%;box-shadow:0 6px 24px #0008}
+#eyePop h2{padding:2px 6px 6px}
+#eyePop .who{display:flex;align-items:center;gap:8px;padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px}
 .rel .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .rel .top b{font-size:15px}
@@ -210,7 +222,14 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
       <button class="main" id="createRoom">Abrir minha sala</button>
     </div>
     <div id="footRoom" hidden style="display:flex;flex-direction:column;gap:10px">
-      <div class="muted" id="shareStatus"></div>
+      <div id="statusRow">
+        <button id="eye" hidden aria-label="Quem está assistindo" aria-expanded="false">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span id="eyeCount">0</span>
+        </button>
+        <div id="eyePop" hidden></div>
+        <div class="muted" id="shareStatus"></div>
+      </div>
       <p class="err" id="shareErr"></p>
       <div class="row">
         <button class="main" id="share" disabled>Preparando…</button>
@@ -262,7 +281,23 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
     <button id="prefsClose" aria-label="Fechar (Esc)" title="Fechar (Esc)">✕</button>
     <section id="prefGeneral">
       <h1>Geral</h1>
-      <div class="wip">Em construção.<br>As opções do app vão aparecer aqui nas próximas versões.</div>
+      <div class="pref">
+        <b>Ao fechar a janela</b>
+        <select id="onClose" aria-label="Ao fechar a janela">
+          <option value="tray">Ficar perto do relógio</option>
+          <option value="minimize">Minimizar</option>
+          <option value="quit">Fechar o app</option>
+        </select>
+        <span class="muted">Assim seus amigos continuam vendo você online. Para sair de vez: botão direito no ícone perto do relógio → Sair, ou o botão abaixo.</span>
+      </div>
+      <div class="pref">
+        <b>Diagnóstico</b>
+        <span class="muted">Se a transmissão der problema, mande o arquivo familiashare.log desta pasta para quem está ajudando. Ele não tem nomes, códigos nem endereços.</span>
+        <button class="ghost small" id="openLogs">Abrir pasta dos logs</button>
+      </div>
+      <div class="pref">
+        <button class="ghost small" id="quitApp">Sair do familiashare</button>
+      </div>
     </section>
     <section id="prefNews" hidden>
       <h1>Novidades</h1>
@@ -386,6 +421,7 @@ function showPrefs(on) {
   if (on) { renderPrefs(); loadNews(); }
 }
 function renderPrefs() {
+  if (S) $('#onClose').value = S.config.onClose || 'tray';
   for (const b of $$('#prefs nav button')) b.classList.toggle('on', b.dataset.pref === prefTab);
   $('#prefGeneral').hidden = prefTab !== 'general'; $('#prefNews').hidden = prefTab !== 'news';
   $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
@@ -406,6 +442,12 @@ async function loadNews() {
     '</div>').join('') || '<p class="muted">Sem novidades registradas.</p>';
 }
 for (const b of $$('#prefs nav button')) b.onclick = () => { prefTab = b.dataset.pref; renderPrefs(); };
+$('#onClose').onchange = () => { goSetOnClose($('#onClose').value); setTimeout(refresh, 150); };
+$('#openLogs').onclick = () => goOpenLogs();
+$('#quitApp').onclick = () => {
+  if (S && S.host.state !== 'idle' && !confirm('Sair encerra sua transmissão. Continuar?')) return;
+  goQuit();
+};
 $('#openPrefs').onclick = () => showPrefs(true);
 $('#prefsClose').onclick = () => showPrefs(false);
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#prefs').hidden) showPrefs(false); });
@@ -527,10 +569,33 @@ function renderFooter() {
   else if (h.state === 'live') st = `Ao vivo: ${h.width}×${h.height} @ ${Math.round(h.fps)} fps · ${h.mbps.toFixed(1)} Mbps` + (h.audio ? ` · áudio: ${h.audio}` : '');
   else st = 'Sua tela: ' + settingsSummary();
   $('#shareStatus').textContent = st;
+  renderViewers(h);
   const envErr = !env ? '' : env.err ? 'Erro ao preparar o FFmpeg: ' + env.err
     : !(env.encoders || []).length ? 'Nenhum encoder de vídeo encontrado nesta máquina.' : '';
   $('#shareErr').textContent = h.err || envErr;
 }
+// Quem está assistindo: olhinho com contador; os nomes aparecem ao passar o mouse ou
+// clicar. Avisa quando alguém começa a assistir (uma vez por pessoa a cada transmissão).
+let eyePinned = false, eyeHover = false;
+const announced = new Set();
+function renderViewers(h) {
+  const live = h.state !== 'idle', ws = live ? (h.watchers || []) : [];
+  if (!live) announced.clear();
+  for (const c of ws) if (!announced.has(c)) { announced.add(c); toast(`${nameOf(c)} começou a assistir sua tela`); }
+  $('#eye').hidden = !live;
+  $('#eyeCount').textContent = ws.length;
+  const names = ws.map(nameOf).sort((a, b) => a.localeCompare(b));
+  setHTML('#eyePop', `<h2>Assistindo · ${names.length}</h2>` + (names.map(n => `<div class="who"><span class="st on"></span>${esc(n)}</div>`).join('')
+    || '<p class="muted" style="padding:2px 6px 4px">Ninguém assistindo ainda.</p>'));
+  const open = live && (eyePinned || eyeHover);
+  $('#eyePop').hidden = !open;
+  $('#eye').classList.toggle('on', open); $('#eye').setAttribute('aria-expanded', open);
+}
+$('#eye').onclick = () => { eyePinned = !eyePinned; renderFooter(); };
+$('#eye').onmouseenter = () => { eyeHover = true; renderFooter(); };
+$('#eye').onmouseleave = () => { eyeHover = false; renderFooter(); };
+document.addEventListener('click', e => { if (eyePinned && !e.target.closest('#eye, #eyePop')) { eyePinned = false; renderFooter(); } });
+
 function settingsSummary() {
   if (!cfg) return '';
   const m = monitors[cfg.monitor] || monitors[0];
@@ -796,6 +861,7 @@ window.onSignal = async ev => {
   pc.onicecandidate = e => e.candidate && goSignal(s.code, 'cand', '', e.candidate.toJSON());
   pc.onconnectionstatechange = () => {
     if (s.pc !== pc) return;
+    if (['connected', 'disconnected', 'failed'].includes(pc.connectionState)) goLog(`assistindo: conexão ${pc.connectionState}`); // sem nomes no log
     if (pc.connectionState === 'connected') tileMsg(s, s.video.videoWidth ? '' : 'aguardando o primeiro quadro…');
     if (pc.connectionState === 'failed') {
       tileMsg(s, 'não foi possível conectar (rede restritiva?) · tentando de novo…');
