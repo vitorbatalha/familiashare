@@ -1,16 +1,20 @@
-// Package update é a autoatualização do app a partir do link público do Google Drive.
+// Package update é a autoatualização do app pelos Releases do GitHub.
 //
-// O scripts/build.ps1 grava um identificador de versão (data/hora do build) em dois lugares:
-//   - dentro do programa (BuildID, via -ldflags), e
-//   - nos últimos bytes do familiashare.exe (uma "etiqueta" anexada ao arquivo).
+// O scripts/build.ps1 grava a versão (0.x.y) no programa (Version, via -ldflags). Ao
+// abrir e a cada 6 h, o app pergunta à API do GitHub qual é o último release; se for
+// mais novo, avisa. O botão "Atualizar" baixa o familiashare.exe do release, confere
+// tamanho e SHA-256, troca o .exe e reabre o app.
 //
-// Ao abrir, o app pede ao Drive só os últimos 64 bytes do arquivo publicado e compara
-// a etiqueta com o próprio BuildID. Se a do Drive for mais nova, avisa; o botão
-// "Atualizar" baixa o arquivo inteiro, troca o .exe e reabre o app.
+// Até a 0.1.2 a atualização vinha de um link do Google Drive, lendo uma etiqueta no fim
+// do .exe. O build ainda anexa essa etiqueta (ver build.ps1) para que essas versões
+// antigas consigam atualizar para a 0.2.0 pelo Drive.
 package update
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,47 +23,64 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
-// BuildID é definido no build (scripts/build.ps1):
+// Version é definida no build (scripts/build.ps1):
 //
-//	-ldflags "-X github.com/vitorbatalha/familiashare/internal/update.BuildID=20261029-141500"
+//	-ldflags "-X github.com/vitorbatalha/familiashare/internal/update.Version=0.2.0"
 //
-// Vazio = build de desenvolvimento (não procura atualização).
-var BuildID string
+// Vazia = build de desenvolvimento (não procura atualização).
+var Version string
 
 const (
-	driveFileID = "1FTrDu4b9hTEYuy83MQdDJquKykb2QX4C"
-	// confirm=t pula a página "não foi possível verificar vírus" que o Drive mostra para .exe
-	driveDownloadURL = "https://drive.usercontent.google.com/download?id=" + driveFileID + "&export=download&confirm=t"
-	// DriveViewURL é a página do arquivo, para baixar manualmente pelo navegador.
-	DriveViewURL  = "https://drive.google.com/file/d/" + driveFileID + "/view"
-	trailerMagic  = "FAMILIASHARE-BUILD:"
+	repo = "vitorbatalha/familiashare"
+	// ReleasesURL é a página dos releases, para baixar manualmente pelo navegador.
+	ReleasesURL   = "https://github.com/" + repo + "/releases/latest"
+	latestAPI     = "https://api.github.com/repos/" + repo + "/releases/latest"
+	assetName     = "familiashare.exe"
 	checkInterval = 6 * time.Hour
 )
 
-// driveURL pode ser trocado por FAMILIASHARE_UPDATE_URL (só para testes locais).
-var driveURL = driveDownloadURL
-
-var trailerRe = regexp.MustCompile(trailerMagic + `([0-9]{8}-[0-9]{6})`)
+// latestURL pode ser trocado por FAMILIASHARE_UPDATE_URL (só para testes locais): deve
+// responder o mesmo JSON que a API do GitHub.
+var latestURL = latestAPI
 
 // State é o estado da atualização, para a interface.
 type State struct {
 	Available bool    `json:"available"`
-	Version   string  `json:"version"`  // versão no Drive
-	Current   string  `json:"current"`  // versão rodando
+	Version   string  `json:"version"`  // último release (ex.: "0.2.1")
+	Current   string  `json:"current"`  // versão rodando ("" = desenvolvimento)
 	Progress  float64 `json:"progress"` // 0..1 durante o download
 	Busy      bool    `json:"busy"`
 	Err       string  `json:"err"`
+}
+
+// release é o pedaço da resposta da API do GitHub que interessa.
+type release struct {
+	Tag    string `json:"tag_name"`
+	Assets []struct {
+		Name   string `json:"name"`
+		URL    string `json:"browser_download_url"`
+		Size   int64  `json:"size"`
+		Digest string `json:"digest"` // "sha256:…"
+	} `json:"assets"`
+}
+
+// asset é o arquivo a baixar de um release.
+type asset struct {
+	url, sha256 string
+	size        int64
 }
 
 // Updater procura e aplica atualizações.
 type Updater struct {
 	mu      sync.Mutex
 	st      State
+	asset   asset
 	restart string // caminho do .exe novo, aberto quando o app terminar de fechar
 	quit    func() // fecha a janela
 }
@@ -67,12 +88,12 @@ type Updater struct {
 // New começa a procurar atualizações (3 s depois de abrir e a cada 6 h). quit deve
 // fechar a janela do app; depois que ela fechar, chame RestartIfNeeded.
 func New(quit func()) *Updater {
-	u := &Updater{st: State{Current: BuildID}, quit: quit}
+	u := &Updater{st: State{Current: Version}, quit: quit}
 	if t := os.Getenv("FAMILIASHARE_UPDATE_URL"); t != "" {
-		driveURL = t
+		latestURL = t
 	}
 	cleanupOldExe()
-	if BuildID != "" {
+	if Version != "" {
 		go func() {
 			time.Sleep(3 * time.Second)
 			for {
@@ -90,52 +111,91 @@ func (u *Updater) State() State {
 	return u.st
 }
 
-// check lê só a etiqueta no fim do arquivo do Drive (pedido de 64 bytes).
 func (u *Updater) check() {
-	remote, err := remoteBuildID()
+	ver, a, err := latest()
 	if err != nil {
 		log.Printf("atualização: %v", err)
 		return
 	}
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	u.st.Available = newer(remote, BuildID)
-	u.st.Version = remote
-	log.Printf("atualização: rodando %s, Drive tem %s", BuildID, remote)
+	u.st.Available = newer(ver, Version)
+	u.st.Version = ver
+	u.asset = a
+	log.Printf("atualização: rodando %s, último release %s", Version, ver)
 }
 
-func remoteBuildID() (string, error) {
-	req, _ := http.NewRequest("GET", driveURL, nil)
-	req.Header.Set("Range", "bytes=-64")
+// latest pergunta ao GitHub qual é o último release (pré-lançamentos, como o do
+// FFmpeg, não contam).
+func latest() (string, asset, error) {
+	req, _ := http.NewRequest("GET", latestURL, nil)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "familiashare/"+Version) // a API exige
 	c := http.Client{Timeout: 20 * time.Second}
 	resp, err := c.Do(req)
 	if err != nil {
-		return "", err
+		return "", asset{}, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusPartialContent {
-		return "", fmt.Errorf("Drive respondeu %s (esperado 206)", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		return "", asset{}, fmt.Errorf("GitHub respondeu %s", resp.Status)
 	}
-	b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-	id, ok := parseTrailer(b)
-	if !ok {
-		return "", errors.New("arquivo no Drive sem etiqueta de versão (versão antiga)")
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", asset{}, err
 	}
-	return id, nil
+	return parseRelease(b)
 }
 
-// parseTrailer acha a etiqueta "FAMILIASHARE-BUILD:aaaammdd-hhmmss" em b.
-func parseTrailer(b []byte) (string, bool) {
-	m := trailerRe.FindSubmatch(b)
-	if m == nil {
-		return "", false
+func parseRelease(b []byte) (string, asset, error) {
+	var r release
+	if err := json.Unmarshal(b, &r); err != nil {
+		return "", asset{}, err
 	}
-	return string(m[1]), true
+	ver := strings.TrimPrefix(r.Tag, "v")
+	if _, ok := parseVersion(ver); !ok {
+		return "", asset{}, fmt.Errorf("release com versão inválida: %q", r.Tag)
+	}
+	for _, a := range r.Assets {
+		if a.Name == assetName {
+			return ver, asset{url: a.URL, size: a.Size, sha256: strings.TrimPrefix(a.Digest, "sha256:")}, nil
+		}
+	}
+	return "", asset{}, fmt.Errorf("release %s sem %s", r.Tag, assetName)
 }
 
-// newer diz se remote é uma versão mais nova que current. Os ids são data-hora
-// (aaaammdd-hhmmss), então comparar o texto é comparar a data.
-func newer(remote, current string) bool { return remote > current }
+// parseVersion lê "0.2.10" como [0 2 10].
+func parseVersion(v string) ([3]int, bool) {
+	var out [3]int
+	parts := strings.Split(v, ".")
+	if len(parts) != 3 {
+		return out, false
+	}
+	for i, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return out, false
+		}
+		out[i] = n
+	}
+	return out, true
+}
+
+// newer diz se remote é uma versão mais nova que current (comparando número a
+// número: 0.2.10 é mais nova que 0.2.9).
+func newer(remote, current string) bool {
+	r, ok1 := parseVersion(remote)
+	c, ok2 := parseVersion(current)
+	if !ok1 || !ok2 {
+		return false
+	}
+	for i := range r {
+		if r[i] != c[i] {
+			return r[i] > c[i]
+		}
+	}
+	return false
+}
 
 // Apply baixa a versão nova, troca o .exe e pede para o app fechar e reabrir.
 func (u *Updater) Apply() {
@@ -145,10 +205,10 @@ func (u *Updater) Apply() {
 		return
 	}
 	u.st.Busy, u.st.Err, u.st.Progress = true, "", 0
-	want := u.st.Version
+	a := u.asset
 	u.mu.Unlock()
 
-	newExe, err := u.download(want)
+	newExe, err := u.download(a)
 	u.mu.Lock()
 	u.st.Busy = false
 	if err != nil {
@@ -162,7 +222,7 @@ func (u *Updater) Apply() {
 	u.quit()
 }
 
-func (u *Updater) download(want string) (string, error) {
+func (u *Updater) download(a asset) (string, error) {
 	self, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -170,36 +230,36 @@ func (u *Updater) download(want string) (string, error) {
 	tmp := self + ".new"
 	f, err := os.Create(tmp)
 	if err != nil {
-		return "", fmt.Errorf("sem permissão para gravar na pasta do app (%v) — baixe pelo Drive", err)
+		return "", fmt.Errorf("sem permissão para gravar na pasta do app (%v) — baixe pelo GitHub", err)
 	}
-	c := http.Client{Timeout: 15 * time.Minute}
-	resp, err := c.Get(driveURL)
-	if err != nil {
+	fail := func(err error) (string, error) {
 		f.Close()
 		os.Remove(tmp)
 		return "", err
 	}
+	c := http.Client{Timeout: 15 * time.Minute}
+	resp, err := c.Get(a.url)
+	if err != nil {
+		return fail(err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		f.Close()
-		os.Remove(tmp)
-		return "", fmt.Errorf("Drive respondeu %s", resp.Status)
+		return fail(fmt.Errorf("GitHub respondeu %s", resp.Status))
 	}
-	total := resp.ContentLength
+	h := sha256.New()
 	var done int64
 	buf := make([]byte, 256<<10)
 	for {
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
 			if _, werr := f.Write(buf[:n]); werr != nil {
-				f.Close()
-				os.Remove(tmp)
-				return "", werr
+				return fail(werr)
 			}
+			h.Write(buf[:n])
 			done += int64(n)
-			if total > 0 {
+			if a.size > 0 {
 				u.mu.Lock()
-				u.st.Progress = float64(done) / float64(total)
+				u.st.Progress = float64(done) / float64(a.size)
 				u.mu.Unlock()
 			}
 		}
@@ -207,13 +267,11 @@ func (u *Updater) download(want string) (string, error) {
 			break
 		}
 		if rerr != nil {
-			f.Close()
-			os.Remove(tmp)
-			return "", rerr
+			return fail(rerr)
 		}
 	}
 	f.Close()
-	if err := verifyExe(tmp, want); err != nil {
+	if err := verifyExe(tmp, a, hex.EncodeToString(h.Sum(nil))); err != nil {
 		os.Remove(tmp)
 		return "", err
 	}
@@ -231,9 +289,8 @@ func (u *Updater) download(want string) (string, error) {
 	return self, nil
 }
 
-// verifyExe confere que o arquivo baixado é um executável inteiro da versão esperada
-// (e não, por exemplo, uma página de aviso do Drive).
-func verifyExe(path, want string) error {
+// verifyExe confere que o arquivo baixado é o executável inteiro do release.
+func verifyExe(path string, a asset, gotSHA string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -241,14 +298,14 @@ func verifyExe(path, want string) error {
 	defer f.Close()
 	st, _ := f.Stat()
 	head := make([]byte, 2)
-	if _, err := io.ReadFull(f, head); err != nil || !bytes.Equal(head, []byte("MZ")) || st.Size() < 10<<20 {
+	if _, err := io.ReadFull(f, head); err != nil || !bytes.Equal(head, []byte("MZ")) {
 		return errors.New("o arquivo baixado não é um executável válido")
 	}
-	tail := make([]byte, 64)
-	f.ReadAt(tail, st.Size()-64)
-	m := trailerRe.FindSubmatch(tail)
-	if m == nil || string(m[1]) != want {
-		return errors.New("o arquivo baixado está incompleto ou é de outra versão")
+	if a.size > 0 && st.Size() != a.size {
+		return errors.New("o download veio incompleto")
+	}
+	if a.sha256 != "" && !strings.EqualFold(gotSHA, a.sha256) {
+		return errors.New("o arquivo baixado não confere (SHA-256 diferente)")
 	}
 	return nil
 }
