@@ -1,7 +1,7 @@
 // Package update é a autoatualização do app pelos Releases do GitHub.
 //
 // O scripts/build.ps1 grava a versão (0.x.y) no programa (Version, via -ldflags). Ao
-// abrir e a cada 6 h, o app pergunta à API do GitHub qual é o último release; se for
+// abrir, a cada 3 h e quando a janela volta, o app pergunta à API do GitHub qual é o último release; se for
 // mais novo, avisa. O botão "Atualizar" baixa o familiashare.exe do release, confere
 // tamanho e SHA-256, troca o .exe e reabre o app.
 //
@@ -42,7 +42,10 @@ const (
 	ReleasesURL   = "https://github.com/" + repo + "/releases/latest"
 	latestAPI     = "https://api.github.com/repos/" + repo + "/releases/latest"
 	assetName     = "familiashare.exe"
-	checkInterval = 6 * time.Hour
+	checkInterval = 3 * time.Hour
+	// CheckSoon (janela reaberta) não pergunta de novo antes disso: a API do GitHub
+	// aceita 60 consultas por hora por endereço sem login.
+	minRecheck = 10 * time.Minute
 )
 
 // latestURL pode ser trocado por FAMILIASHARE_UPDATE_URL (só para testes locais): deve
@@ -83,12 +86,15 @@ type Updater struct {
 	asset   asset
 	restart string // caminho do .exe novo, aberto quando o app terminar de fechar
 	quit    func() // fecha a janela
+	last    time.Time
+	soon    chan struct{}
 }
 
-// New começa a procurar atualizações (3 s depois de abrir e a cada 6 h). quit deve
-// fechar a janela do app; depois que ela fechar, chame RestartIfNeeded.
+// New começa a procurar atualizações (3 s depois de abrir, a cada 3 h e quando
+// CheckSoon pede). quit deve fechar a janela do app; depois que ela fechar, chame
+// RestartIfNeeded.
 func New(quit func()) *Updater {
-	u := &Updater{st: State{Current: Version}, quit: quit}
+	u := &Updater{st: State{Current: Version}, quit: quit, soon: make(chan struct{}, 1)}
 	if t := os.Getenv("FAMILIASHARE_UPDATE_URL"); t != "" {
 		latestURL = t
 	}
@@ -98,11 +104,29 @@ func New(quit func()) *Updater {
 			time.Sleep(3 * time.Second)
 			for {
 				u.check()
-				time.Sleep(checkInterval)
+				select {
+				case <-time.After(checkInterval):
+				case <-u.soon:
+				}
 			}
 		}()
 	}
 	return u
+}
+
+// CheckSoon procura atualização agora (ex.: a janela voltou da bandeja), a menos que
+// tenha procurado há pouco.
+func (u *Updater) CheckSoon() {
+	u.mu.Lock()
+	recent := time.Since(u.last) < minRecheck
+	u.mu.Unlock()
+	if recent {
+		return
+	}
+	select {
+	case u.soon <- struct{}{}:
+	default:
+	}
 }
 
 func (u *Updater) State() State {
@@ -112,6 +136,9 @@ func (u *Updater) State() State {
 }
 
 func (u *Updater) check() {
+	u.mu.Lock()
+	u.last = time.Now()
+	u.mu.Unlock()
 	ver, a, err := latest()
 	if err != nil {
 		log.Printf("atualização: %v", err)
