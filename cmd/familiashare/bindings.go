@@ -23,7 +23,7 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/winapi"
 )
 
-func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, dataDir string) {
+func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *winapi.Frame, dataDir string) {
 	hwnd := uintptr(w.Window())
 
 	// preferências do app
@@ -117,7 +117,24 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, dataDir 
 		return out
 	})
 
-	// janela
+	// janela: botões e arraste da barra de título da página; devolve se está maximizada
+	w.Bind("goWindow", func(action string) bool {
+		switch action {
+		case "min":
+			frame.Minimize()
+		case "max":
+			frame.ToggleMaximize()
+		case "close":
+			frame.Close()
+		case "drag":
+			frame.StartDrag()
+		case "menu":
+			frame.SystemMenu()
+		case "top", "left", "right":
+			frame.StartResize(action)
+		}
+		return frame.Maximized()
+	})
 	var fs winapi.Fullscreen
 	w.Bind("goFullscreen", func(on bool) bool {
 		fs.Set(hwnd, on)

@@ -40,7 +40,7 @@ flowchart LR
 | [`internal/config`](../internal/config) | `config.json` (código, nome, amigos, ajustes) e migração de versões antigas. |
 | [`internal/update`](../internal/update) | Procura e aplica atualizações (GitHub Releases). |
 | [`internal/changelog`](../internal/changelog) | Lê o `CHANGELOG.md` embutido para a tela de Novidades. |
-| [`internal/winapi`](../internal/winapi) | Chamadas diretas ao Windows: COM, janela, DPI, prioridade de processo/GPU, ícone perto do relógio e instância única. |
+| [`internal/winapi`](../internal/winapi) | Chamadas diretas ao Windows: COM, janela (incluindo a barra de título própria, em `frame.go`), DPI, prioridade de processo/GPU, ícone perto do relógio e instância única. |
 | [`internal/applog`](../internal/applog) | Log em disco para diagnóstico: tamanho limitado e filtro de dados pessoais. |
 
 ## Caminho do vídeo
