@@ -13,6 +13,7 @@ package audio
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"os"
 	"runtime"
@@ -214,6 +215,9 @@ func (a *Engine) planner() {
 			want[t.key()] = t
 		}
 		a.mu.Lock()
+		if mode != a.mode {
+			log.Printf("áudio: capturando %s", mode) // só contagens, nunca nomes de apps
+		}
 		a.mode = mode
 		for k, s := range a.sources {
 			if _, ok := want[k]; !ok || s.dead.Load() {

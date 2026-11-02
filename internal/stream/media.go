@@ -6,7 +6,6 @@ package stream
 import (
 	"bufio"
 	"context"
-	"log"
 	"net"
 	"strings"
 	"time"
@@ -36,7 +35,10 @@ func (h *Host) videoLoop(ctx context.Context) {
 			}
 		}
 		if len(cands) == 0 {
+			logf("nenhum encoder disponível para %s", cfg.Codec)
 			h.setStat(func(s *Stats) { s.Err = "nenhum encoder de vídeo disponível para " + strings.ToUpper(cfg.Codec) })
+		} else {
+			logf("pipelines a tentar: %s", pipelineKeys(cands))
 		}
 		var lastErr string
 		ran := false
@@ -45,21 +47,30 @@ func (h *Host) videoLoop(ctx context.Context) {
 			h.mu.Lock()
 			h.vCancel = vcancel
 			h.mu.Unlock()
+			t0 := time.Now()
 			produced, errText := h.runVideo(vctx, p, cfg, mon)
 			restarted := vctx.Err() != nil
 			vcancel()
 			if ctx.Err() != nil {
 				return
 			}
+			switch {
+			case restarted:
+				logf("reiniciando o vídeo com as novas configurações")
+			case produced: // funcionava e parou sozinho
+				logf("vídeo (%s) parou após %s: %s", p.key(), fmtDur(time.Since(t0)), ffmpegTail(errText))
+			default:
+				logf("pipeline %s falhou após %s: %s", p.key(), fmtDur(time.Since(t0)), ffmpegTail(errText))
+			}
 			if produced || restarted {
 				ran = true
 				break
 			}
 			lastErr = errText
-			log.Printf("pipeline %s falhou: %s", p.key(), errText)
 		}
 		if !ran {
 			if len(cands) > 0 {
+				logf("nenhum pipeline funcionou; tentando de novo em 5 s")
 				h.setStat(func(s *Stats) { s.Err = "não foi possível capturar/codificar: " + lastErr })
 			}
 			select {
@@ -114,6 +125,7 @@ func (h *Host) runVideo(ctx context.Context, p pipeline, cfg config.Config, mon 
 	buf := make([]byte, 2048)
 	var pkt rtp.Packet
 	n0 := h.video.frames.Load()
+	t0 := time.Now()
 	for {
 		conn.SetReadDeadline(time.Now().Add(8 * time.Second))
 		n, err := conn.Read(buf)
@@ -132,6 +144,7 @@ func (h *Host) runVideo(ctx context.Context, p pipeline, cfg config.Config, mon 
 			h.stats.Pipeline = p.describe(cfg.Codec)
 			h.stats.Width, h.stats.Height = w, ht
 			h.mu.Unlock()
+			logf("ao vivo com %s (%s), %dx%d, primeiros quadros em %s", p.key(), p.describe(cfg.Codec), w, ht, fmtDur(time.Since(t0)))
 		}
 	}
 }
@@ -150,7 +163,7 @@ func (h *Host) startAudio() { // chamado com h.mu travado
 			default:
 			}
 			if err := h.runAudio(ctx, eng); err != nil {
-				log.Printf("áudio: %v", err)
+				logf("áudio falhou: %v", err)
 				time.Sleep(2 * time.Second)
 			}
 		}
@@ -217,6 +230,7 @@ func (h *Host) statsLoop(ctx context.Context) {
 	t := time.NewTicker(time.Second)
 	defer t.Stop()
 	var lb, lf uint64
+	var minute minuteStats
 	for {
 		select {
 		case <-ctx.Done():
@@ -224,10 +238,15 @@ func (h *Host) statsLoop(ctx context.Context) {
 		case <-t.C:
 		}
 		b, f := h.video.bytes.Load(), h.video.frames.Load()
-		h.setStat(func(s *Stats) {
-			s.Mbps = float64(b-lb) * 8 / 1e6
-			s.FPS = float64(f - lf)
-		})
+		mbps, fps := float64(b-lb)*8/1e6, float64(f-lf)
+		h.mu.Lock()
+		h.stats.Mbps, h.stats.FPS = mbps, fps
+		live, viewers := h.stats.State == "live", len(h.viewers)
+		h.mu.Unlock()
+		if live {
+			minute.add(fps, mbps)
+			minute.flush(viewers)
+		}
 		lb, lf = b, f
 	}
 }
