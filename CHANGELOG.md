@@ -13,7 +13,7 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 ### Adicionado
 - Veja quem está assistindo sua transmissão: o olhinho no rodapé mostra quantas pessoas
   estão assistindo; passe o mouse ou clique nele para ver os nomes.
-- Aviso quando alguém começa a assistir sua tela.
+- Avisa quando alguém começa a assistir sua tela.
 - Ao fechar a janela, o familiashare continua aberto perto do relógio, para seus amigos
   continuarem vendo você online. Dá para trocar em Configurações → Geral (ficar perto do
   relógio, minimizar ou fechar o app). Para sair de vez: botão direito no ícone perto do
