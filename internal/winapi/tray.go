@@ -35,6 +35,7 @@ var (
 
 const (
 	wmClose      = 0x0010
+	wmActivate   = 0x0006
 	wmNull       = 0x0000
 	wmLButtonUp  = 0x0202
 	wmRButtonUp  = 0x0205
@@ -96,6 +97,10 @@ type Tray struct {
 	onClose     func() CloseAction
 	onHidden    func() // chamado ao esconder na bandeja
 	quit        func()
+
+	// OnActivate é chamado quando a janela volta a ficar em primeiro plano (vinda da
+	// bandeja, da barra de tarefas, Alt+Tab…). Roda na thread da janela: não pode demorar.
+	OnActivate func()
 }
 
 // NewTray coloca o ícone e passa a tratar o botão de fechar. onClose decide o que
@@ -191,6 +196,8 @@ func (t *Tray) wndProc(hwnd, msg, wp, lp uintptr) uintptr {
 		return 0
 	case msg != 0 && uint32(msg) == t.recreateMsg:
 		t.addIcon()
+	case msg == wmActivate && wp&0xFFFF != 0 && t.OnActivate != nil:
+		t.OnActivate()
 	}
 	r, _, _ := procCallWindowProcW.Call(t.orig, hwnd, msg, wp, lp)
 	return r

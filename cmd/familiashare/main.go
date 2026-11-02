@@ -132,17 +132,18 @@ func main() {
 	svc.Run(signaling.Start(cfg.MyCode, svc.OnMessage, svc.OnConnected))
 	upd := update.New(func() { w.Dispatch(w.Terminate) })
 
-	// botão de fechar: perto do relógio (padrão), minimizar ou sair (Configurações → Geral)
+	// botão de fechar: bandeja (padrão), minimizar ou sair (Configurações → Geral)
 	closeActions := map[string]winapi.CloseAction{"tray": winapi.CloseTray, "minimize": winapi.CloseMinimize, "quit": winapi.CloseQuit}
 	var tray *winapi.Tray
 	tray = winapi.NewTray(hwnd, appName, instance,
 		func() winapi.CloseAction { return closeActions[svc.OnClose()] },
 		func() {
 			if svc.FirstTrayHide() {
-				tray.Notify(appName+" continua aberto", "Ele fica aqui, perto do relógio. Para sair, clique com o botão direito no ícone → Sair.")
+				tray.Notify(appName+" continua aberto", "Ele fica na bandeja, nos ícones ao lado do relógio. Para sair, clique com o botão direito no ícone → Sair.")
 			}
 		},
 		w.Terminate)
+	tray.OnActivate = upd.CheckSoon // janela de volta: vê se saiu versão nova
 
 	bind(w, svc, upd, dataDir)
 	w.Navigate("http://" + ln.Addr().String() + "/")
