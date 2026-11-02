@@ -38,7 +38,8 @@ flowchart LR
 | [`internal/ffmpeg`](../internal/ffmpeg) | O FFmpeg embutido (comprimido com zstd), extraído na primeira execução. |
 | [`internal/capture`](../internal/capture) | Lista monitores e qual GPU cuida de cada um (DXGI). |
 | [`internal/config`](../internal/config) | `config.json` (código, nome, amigos, ajustes) e migração de versões antigas. |
-| [`internal/update`](../internal/update) | Procura e aplica atualizações. |
+| [`internal/update`](../internal/update) | Procura e aplica atualizações (GitHub Releases). |
+| [`internal/changelog`](../internal/changelog) | Lê o `CHANGELOG.md` embutido para a tela de Novidades. |
 | [`internal/winapi`](../internal/winapi) | Chamadas diretas ao Windows: COM, janela, DPI, prioridade de processo/GPU. |
 
 ## Caminho do vídeo
@@ -94,11 +95,19 @@ o WebRTC funcionar.
 
 ## Atualização
 
-O build de release grava um identificador (data/hora) no programa e numa etiqueta
-`FAMILIASHARE-BUILD:...` no fim do `.exe`. O app baixa só os últimos bytes do arquivo
-publicado para comparar a etiqueta e, se houver versão nova, baixa o arquivo inteiro,
-confere que é um executável válido, renomeia o `.exe` atual para `.old` (o Windows deixa
-renomear um programa em uso), coloca o novo no lugar e reinicia.
+O build de release grava a versão (`0.x.y`) no programa. Ao abrir e a cada 6 h, o app
+consulta a API do GitHub pelo último release (pré-lançamentos, como o do FFmpeg, ficam de
+fora) e, se for mais novo, avisa. Ao atualizar, baixa o `familiashare.exe` do release,
+confere tamanho e SHA-256 com o que o GitHub informa, renomeia o `.exe` atual para `.old`
+(o Windows deixa renomear um programa em uso), coloca o novo no lugar e reinicia.
+
+Até a 0.1.2 a atualização vinha de um link do Google Drive: o app lia uma etiqueta
+`FAMILIASHARE-BUILD:aaaammdd-hhmmss` no fim do arquivo publicado. O build ainda anexa essa
+etiqueta para que essas versões antigas atualizem para a 0.2.0 pelo Drive; depois que
+todos estiverem na 0.2+, ela pode sair do `build.ps1`.
+
+As novidades mostradas em Configurações vêm do próprio `CHANGELOG.md`, embutido no
+`.exe` e lido por [`internal/changelog`](../internal/changelog/changelog.go).
 
 ## Lições aprendidas
 
