@@ -29,8 +29,16 @@ O app só roda no **Windows 10 (2004+) ou 11** (usa APIs do Windows para captura
 O build de desenvolvimento não tem versão e não procura atualizações. Builds com
 versão saem do GitHub (ver [Lançando uma versão](#lançando-uma-versão)).
 
-O log fica em `%LOCALAPPDATA%\familiashare\familiashare.log` e, se o app fechar sozinho,
-o motivo vai para `crash.log` na mesma pasta.
+O log fica em `%LOCALAPPDATA%\familiashare\familiashare.log` (Configurações → Geral →
+Abrir pasta dos logs) e, se o app fechar sozinho, o motivo vai para `crash.log` na mesma
+pasta. O log persiste entre aberturas, gira em 512 KB (`familiashare.anterior.log`) e
+passa por um filtro que tira dados pessoais — mesmo assim, **não registre nomes, códigos
+de amigo nem endereços** (ver [`internal/applog`](internal/applog/applog.go)). Na
+transmissão, quem assiste aparece como "espectador 1", "espectador 2"…
+
+Fechar a janela deixa o app perto do relógio (padrão); para encerrar de verdade durante
+o desenvolvimento, use o botão direito no ícone → Sair. Instâncias com `FAMILIASHARE_DATA`
+diferentes rodam lado a lado; com a mesma pasta, a segunda só traz a primeira de volta.
 
 ### Testar com várias pessoas no mesmo PC
 
