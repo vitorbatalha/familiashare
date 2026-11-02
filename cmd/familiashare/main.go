@@ -16,17 +16,23 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strconv"
+	"strings"
 
 	webview2 "github.com/jchv/go-webview2"
+	"github.com/vitorbatalha/familiashare/internal/applog"
+	"github.com/vitorbatalha/familiashare/internal/capture"
 	"github.com/vitorbatalha/familiashare/internal/config"
 	"github.com/vitorbatalha/familiashare/internal/ffmpeg"
 	"github.com/vitorbatalha/familiashare/internal/signaling"
@@ -35,6 +41,7 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/update"
 	"github.com/vitorbatalha/familiashare/internal/winapi"
 	"github.com/vitorbatalha/familiashare/ui"
+	"golang.org/x/sys/windows"
 )
 
 const appName = "familiashare"
@@ -46,14 +53,28 @@ func main() {
 		dataDir = d
 	}
 	os.MkdirAll(dataDir, 0o755)
-	migrateOldData(dataDir)
-	if f, err := os.Create(filepath.Join(dataDir, "familiashare.log")); err == nil {
-		log.SetOutput(f)
-		defer f.Close()
+
+	// Um app por pasta de dados: abrir de novo com ele perto do relógio só traz a
+	// janela de volta (dois abertos com o mesmo código brigariam no servidor).
+	instance := fmt.Sprintf("%x", sha256.Sum256([]byte(strings.ToLower(dataDir))))[:16]
+	if os.Getenv("FAMILIASHARE_BENCH") == "" && os.Getenv("FAMILIASHARE_AUDIOTEST") == "" && !winapi.SingleInstance(instance) {
+		return
 	}
-	if f, err := os.OpenFile(filepath.Join(dataDir, "crash.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+
+	migrateOldData(dataDir)
+	// log para diagnóstico: persiste entre aberturas, tem tamanho limitado e não guarda
+	// dados pessoais (ver internal/applog)
+	logw, err := applog.Open(filepath.Join(dataDir, "familiashare.log"), applog.Max)
+	if err == nil {
+		log.SetOutput(logw)
+		defer logw.Close()
+	}
+	crash := filepath.Join(dataDir, "crash.log")
+	applog.TrimFile(crash, 256<<10)
+	if f, err := os.OpenFile(crash, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
 		debug.SetCrashOutput(f, debug.CrashOptions{}) // se o app fechar sozinho, o motivo fica aqui
 	}
+	logEnvironment()
 	winapi.InitJob()
 	ffmpeg.Init(dataDir)
 
@@ -98,7 +119,10 @@ func main() {
 	}
 
 	cfg := config.Load(dataDir)
-	config.Save(dataDir, cfg)         // fixa o código de amigo gerado na primeira execução
+	config.Save(dataDir, cfg) // fixa o código de amigo gerado na primeira execução
+	if logw != nil {
+		logw.Redact(cfg.MyCode, cfg.Name)
+	}
 	toUI := func(ev map[string]any) { // eventos de WebRTC para quem assiste (JS)
 		b, _ := json.Marshal(ev)
 		w.Dispatch(func() { w.Eval("window.onSignal && onSignal(" + string(b) + ")") })
@@ -108,11 +132,41 @@ func main() {
 	svc.Run(signaling.Start(cfg.MyCode, svc.OnMessage, svc.OnConnected))
 	upd := update.New(func() { w.Dispatch(w.Terminate) })
 
-	bind(w, svc, upd)
+	// botão de fechar: perto do relógio (padrão), minimizar ou sair (Configurações → Geral)
+	closeActions := map[string]winapi.CloseAction{"tray": winapi.CloseTray, "minimize": winapi.CloseMinimize, "quit": winapi.CloseQuit}
+	var tray *winapi.Tray
+	tray = winapi.NewTray(hwnd, appName, instance,
+		func() winapi.CloseAction { return closeActions[svc.OnClose()] },
+		func() {
+			if svc.FirstTrayHide() {
+				tray.Notify(appName+" continua aberto", "Ele fica aqui, perto do relógio. Para sair, clique com o botão direito no ícone → Sair.")
+			}
+		},
+		w.Terminate)
+
+	bind(w, svc, upd, dataDir)
 	w.Navigate("http://" + ln.Addr().String() + "/")
 	w.Run()
+	tray.Remove()
 	svc.Shutdown()
+	winapi.ReleaseInstance()
 	upd.RestartIfNeeded()
+}
+
+// logEnvironment registra o que mais importa para diagnosticar problemas de transmissão:
+// versões, monitores e placas de vídeo. Nada pessoal.
+func logEnvironment() {
+	ver := update.Version
+	if ver == "" {
+		ver = "desenvolvimento"
+	}
+	v := windows.RtlGetVersion()
+	log.Printf("===== familiashare %s aberto · Windows %d.%d build %d · %d CPUs",
+		ver, v.MajorVersion, v.MinorVersion, v.BuildNumber, runtime.NumCPU())
+	for i, m := range capture.ListMonitors() {
+		log.Printf("monitor %d: %dx%d%s · %s (fabricante %04x)", i+1, m.Width, m.Height,
+			map[bool]string{true: " (principal)"}[m.Primary], m.GPU, m.Vendor)
+	}
 }
 
 // migrateOldData traz amigos, código e configurações da época em que o app se chamava "tela".

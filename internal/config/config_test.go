@@ -39,6 +39,22 @@ func TestV2KeepsAutomaticBitrate(t *testing.T) {
 	}
 }
 
+func TestOnCloseDefaultsToTray(t *testing.T) {
+	// configs antigas (sem onClose) passam a ir para perto do relógio ao fechar
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"v":2,"myCode":"abcdefgh"}`), 0o644)
+	if c := Load(dir); c.OnClose != "tray" {
+		t.Errorf("onClose = %q, quero tray", c.OnClose)
+	}
+	for _, v := range []string{"tray", "minimize", "quit"} {
+		c := Config{OnClose: v}
+		c.Normalize()
+		if c.OnClose != v {
+			t.Errorf("onClose %q virou %q", v, c.OnClose)
+		}
+	}
+}
+
 func TestSaveLoadRoundTrip(t *testing.T) {
 	dir := t.TempDir()
 	c := Load(dir)

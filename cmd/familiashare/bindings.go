@@ -23,8 +23,13 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/winapi"
 )
 
-func bind(w webview2.WebView, svc *social.Service, upd *update.Updater) {
+func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, dataDir string) {
 	hwnd := uintptr(w.Window())
+
+	// preferências do app
+	w.Bind("goSetOnClose", func(v string) { svc.SetOnClose(v) })
+	w.Bind("goQuit", func() { w.Dispatch(w.Terminate) })
+	w.Bind("goOpenLogs", func() { winapi.OpenURL(dataDir) }) // para mandar o familiashare.log a quem ajuda
 
 	// estado e ações sociais
 	w.Bind("goState", func() social.State { return svc.State() })
@@ -71,10 +76,17 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater) {
 				list = append(list, f)
 			}
 		}
+		names := make([]string, 0, len(avail))
+		for name := range avail {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		log.Printf("ffmpeg: encoders disponíveis: %s", strings.Join(names, ", "))
 		envMu.Lock()
 		env = map[string]any{"ready": true, "encoders": list, "codecs": avail}
 		if err != nil {
 			env["err"] = err.Error()
+			log.Printf("ffmpeg: erro ao preparar: %v", err)
 		}
 		envMu.Unlock()
 	}()
