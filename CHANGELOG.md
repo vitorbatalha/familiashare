@@ -8,6 +8,13 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+### Adicionado
+- Visual novo: a janela ganhou barra de título própria, com botões de minimizar,
+  maximizar e fechar no estilo do Windows, e o app ganhou um toque de cor — laranja nos
+  botões principais e no olhinho de quem está assistindo, e texto num branco mais quente.
+  Arrastar, clicar duas vezes para maximizar e encaixar a janela nos cantos continuam
+  funcionando.
+
 ### Alterado
 - Sala particular agora é mais discreta: seus amigos veem você só como online, sem saber
   que está numa sala (antes aparecia "sala particular" na lista deles).

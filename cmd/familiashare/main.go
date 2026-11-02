@@ -114,6 +114,7 @@ func main() {
 	w.SetSize(winapi.DPIScale(380), winapi.DPIScale(520), webview2.HintMin) // abaixo disso a interface não cabe
 	winapi.FitWindow(hwnd, 500, 860)
 	winapi.SetWindowIcon(hwnd)
+	frame := winapi.NewFrame(hwnd) // a barra de título é a da página (ui/index.html)
 	if t := os.Getenv("FAMILIASHARE_TITLE"); t != "" {
 		w.SetTitle(t)
 	}
@@ -145,7 +146,7 @@ func main() {
 		w.Terminate)
 	tray.OnActivate = upd.CheckSoon // janela de volta: vê se saiu versão nova
 
-	bind(w, svc, upd, dataDir)
+	bind(w, svc, upd, frame, dataDir)
 	w.Navigate("http://" + ln.Addr().String() + "/")
 	w.Run()
 	tray.Remove()
