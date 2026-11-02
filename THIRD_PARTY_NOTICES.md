@@ -5,12 +5,10 @@ nos links.
 
 ## FFmpeg
 
-- Versão: n8.1.3 (`n8.1.3-18-g46d899d7a0`), build `win64-lgpl` de
-  [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)
+- Versão: n8.1.3, build `win64-lgpl` de [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)
 - Licença: [GNU LGPL v3 ou posterior](https://www.gnu.org/licenses/lgpl-3.0.html)
-  (configurado com `--enable-version3`, sem componentes GPL)
-- Código-fonte: <https://github.com/FFmpeg/FFmpeg/tree/46d899d7a0> (branch `release/8.1`)
-  e scripts de build em <https://github.com/BtbN/FFmpeg-Builds>
+- Código-fonte: <https://github.com/FFmpeg/FFmpeg/tree/n8.1.3> e scripts de build em
+  <https://github.com/BtbN/FFmpeg-Builds>
 
 O FFmpeg é um programa separado: vai embutido (comprimido) no `.exe`, é extraído para
 `%LOCALAPPDATA%\familiashare` e executado como processo à parte. Você pode substituí-lo

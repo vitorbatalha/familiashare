@@ -1,0 +1,7 @@
+# Fim de linha LF em todo lugar: sem isso o checkout no Windows (CI) converte para CRLF
+# e o gofmt acusa todos os arquivos.
+* text=auto eol=lf
+
+*.png binary
+*.ico binary
+*.zst binary
