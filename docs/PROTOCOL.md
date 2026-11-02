@@ -68,7 +68,7 @@ Outras regras do servidor:
 | `fr-req` | hello | Pedido de amizade. Reenviado a cada ciclo de presença enquanto não for aceito (a pessoa pode estar offline). Se os dois se adicionaram, vira amizade direto. |
 | `fr-acc` | hello | Pedido aceito. |
 | `fr-del` | — | Desfez a amizade. |
-| `ping` / `pong` | hello | Presença: a cada **15 s** cada app manda `ping` aos amigos, que respondem `pong`. Um amigo sem notícias há **40 s** é mostrado como offline. O `room` informa a sala aberta (para aparecer "Entrar"). |
+| `ping` / `pong` | hello | Presença: a cada **15 s** cada app manda `ping` aos amigos, que respondem `pong`. Um amigo sem notícias há **40 s** é mostrado como offline. O `room` informa a sala aberta (para aparecer "Entrar"); só vai quando a sala é **pública** — sala particular não é anunciada, e quem recebe ignora um `room` particular vindo de versões até a 0.2.2. |
 
 Mensagens de quem não é amigo são ignoradas (exceto `fr-req`).
 
