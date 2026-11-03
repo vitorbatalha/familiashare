@@ -131,7 +131,10 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .rel li{margin-bottom:3px}
 
 #toasts{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);display:grid;gap:6px;width:min(420px,calc(100% - 32px));z-index:10}
-.toast{background:#1d1d21;border:1px solid #33333a;border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s}
+.toast{background:#1d1d21;border:1px solid #33333a;border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s;display:flex;gap:10px;align-items:flex-start}
+.toast span{flex:1}
+.toast button{all:unset;cursor:pointer;color:var(--mute);font-size:16px;line-height:1.2;padding:0 2px}
+.toast button:hover{color:var(--fg)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}}
 
 /* ===== Assistir: grade de telas estilo Discord ===== */
@@ -358,10 +361,16 @@ let cfg = null;          // configurações de transmissão (editadas aqui)
 let newRoomPublic = true;
 let tab = 'friends', wasInRoom = false;
 
-function toast(text, ms = 5000) {
-  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+// closable: com botão × (para avisos longos, que podem cobrir algo)
+function toast(text, ms = 5000, closable = false) {
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = '<span></span>' + (closable ? '<button aria-label="Fechar aviso" title="Fechar">×</button>' : '');
+  t.firstChild.textContent = text;
+  if (closable) t.lastChild.onclick = () => t.remove();
   $('#toasts').appendChild(t); setTimeout(() => t.remove(), ms);
+  return t;
 }
+let shareHint = null;
 
 // só troca o HTML se mudou (não atrapalha cliques)
 function setHTML(el, html) { if (typeof el === 'string') el = $(el); if (el.dataset.h !== html) { el.innerHTML = html; el.dataset.h = html; } }
@@ -643,11 +652,11 @@ $('#share').onclick = () => {
     $('#shareErr').textContent = ''; goStartShare(readForm());
     // na primeira transmissão com som, lembra que dá para tirar o Discord (eco)
     if (cfg.audio && !(cfg.exclude || []).length) goFirstShareHint().then(first => first &&
-      toast('Dica: nas configurações da transmissão (botão ao lado) dá para silenciar apps como o Discord, para seus amigos não ouvirem eco.', 12000));
+      (shareHint = toast('Dica: nos ajustes da transmissão dá para silenciar apps como o Discord, para seus amigos não ouvirem eco.', 12000, true)));
   }
   setTimeout(refresh, 200);
 };
-$('#openSettings').onclick = () => { $('#sheet').hidden = false; refreshApps(); };
+$('#openSettings').onclick = () => { $('#sheet').hidden = false; refreshApps(); shareHint?.remove(); }; // a dica já foi seguida
 $('#closeSettings').onclick = () => { $('#sheet').hidden = true; };
 $('#sheet').onclick = e => { if (e.target.id === 'sheet') $('#sheet').hidden = true; };
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#sheet').hidden) $('#sheet').hidden = true; });
