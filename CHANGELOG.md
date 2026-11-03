@@ -34,6 +34,27 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 - Agora, quando você está em uma sala particular, seus amigos veem você só como online,
   sem saber que está numa sala.
 
+## [0.2.2] — 2026-11-02
+
+### Alterado
+- O app procura atualizações a cada 3 horas e sempre que você volta para a janela (antes
+  era só ao abrir e a cada 6 horas).
+- Textos mais claros nas configurações.
+
+## [0.2.1] — 2026-11-02
+
+### Adicionado
+- Agora é possível ver quem está assistindo sua transmissão.
+- O aplicativo avisa quando alguém começa a assistir sua tela.
+- Ao fechar a janela, o familiashare minimiza pra barra de tarefas. Você pode alterar isso
+  nas configurações.
+- Registro das transmissões, para diagnóstico de erros. Ele fica salvo localmente, ocupa
+  no máximo 1 MB.
+
+### Alterado
+- Abrir o familiashare quando ele já está aberto traz a janela de volta, em vez de abrir
+  uma segunda cópia.
+
 ## [0.2.0] — 2026-11-01
 
 ### Adicionado
@@ -55,4 +76,6 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 [0.3.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.2
 [0.3.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.1
 [0.3.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.0
+[0.2.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.2
+[0.2.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.1
 [0.2.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.0
