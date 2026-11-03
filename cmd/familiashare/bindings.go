@@ -28,6 +28,7 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *w
 
 	// preferências do app
 	w.Bind("goSetOnClose", func(v string) { svc.SetOnClose(v) })
+	w.Bind("goFirstShareHint", func() bool { return svc.FirstShareHint() })
 	w.Bind("goQuit", func() { w.Dispatch(w.Terminate) })
 	w.Bind("goOpenLogs", func() { winapi.OpenURL(dataDir) }) // para mandar o familiashare.log a quem ajuda
 

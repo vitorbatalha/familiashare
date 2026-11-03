@@ -286,15 +286,11 @@ html.max #tb .rz{display:none}
       <hr>
       <label class="check full"><input type="checkbox" id="audio"> Transmitir o áudio do PC</label>
       <div id="audioOpts" class="full" style="display:grid;gap:8px">
-        <div class="muted">Não transmitir o áudio destes apps:</div>
+        <b style="font-size:13px;color:var(--fg)">Silenciar apps na transmissão</b>
+        <div class="muted">O som destes apps não vai para quem assiste. Use com o Discord, por exemplo, para seus amigos não ouvirem a própria voz de volta (eco).</div>
         <div class="chips" id="chips"></div>
-        <select id="appPick" aria-label="Escolher app com som"><option value="">Escolher app com som…</option></select>
-        <div class="row">
-          <input id="appName" placeholder="ou digite: discord" spellcheck="false" aria-label="Nome do app">
-          <button class="ghost" id="addApp">Adicionar</button>
-        </div>
+        <select id="appPick" aria-label="Escolher um app para silenciar"><option value="">Escolher um app para silenciar…</option></select>
       </div>
-      <p class="muted full">As mudanças valem na hora, mesmo transmitindo.</p>
     </div>
   </div>
 </div>
@@ -362,9 +358,9 @@ let cfg = null;          // configurações de transmissão (editadas aqui)
 let newRoomPublic = true;
 let tab = 'friends', wasInRoom = false;
 
-function toast(text) {
+function toast(text, ms = 5000) {
   const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
-  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 5000);
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), ms);
 }
 
 // só troca o HTML se mudou (não atrapalha cliques)
@@ -642,7 +638,13 @@ $('#leaveRoom').onclick = () => {
   closeWatch(); goLeave(); setTimeout(refresh, 150);
 };
 $('#share').onclick = () => {
-  if (S.host.state !== 'idle') goStopShare(); else { $('#shareErr').textContent = ''; goStartShare(readForm()); }
+  if (S.host.state !== 'idle') goStopShare();
+  else {
+    $('#shareErr').textContent = ''; goStartShare(readForm());
+    // na primeira transmissão com som, lembra que dá para tirar o Discord (eco)
+    if (cfg.audio && !(cfg.exclude || []).length) goFirstShareHint().then(first => first &&
+      toast('Dica: nas configurações da transmissão (botão ao lado) dá para silenciar apps como o Discord, para seus amigos não ouvirem eco.', 12000));
+  }
   setTimeout(refresh, 200);
 };
 $('#openSettings').onclick = () => { $('#sheet').hidden = false; refreshApps(); };
@@ -715,9 +717,9 @@ for (const id of ['monitor', 'height', 'fps', 'mbps', 'codec', 'encoder', 'audio
 
 function renderChips() {
   $('#chips').innerHTML = (cfg.exclude || []).map((n, i) => `<span class="chip">${esc(n)}<button data-i="${i}" title="remover">×</button></span>`).join('') ||
-    '<span class="muted">nenhum — todo o áudio do PC é transmitido</span>';
+    '<span class="muted">Nenhum app silenciado: quem assiste ouve todo o som do PC.</span>';
   for (const b of $('#chips').querySelectorAll('button')) b.onclick = () => {
-    cfg.exclude.splice(+b.dataset.i, 1); renderChips(); goUpdateShare(readForm());
+    cfg.exclude.splice(+b.dataset.i, 1); renderChips(); refreshApps(); goUpdateShare(readForm());
   };
 }
 function addExclusion(name) {
@@ -725,16 +727,16 @@ function addExclusion(name) {
   if (!name.endsWith('.exe')) name += '.exe';
   cfg.exclude = cfg.exclude || [];
   if (!cfg.exclude.includes(name)) cfg.exclude.push(name);
-  renderChips(); goUpdateShare(readForm());
+  renderChips(); refreshApps(); goUpdateShare(readForm());
 }
 async function refreshApps() {
   const apps = await goAudioApps();
-  $('#appPick').innerHTML = '<option value="">Escolher app com som…</option>' + apps.map(a => `<option>${esc(a)}</option>`).join('');
+  // só aparecem apps abertos que estão usando o som
+  $('#appPick').innerHTML = '<option value="">Escolher um app para silenciar…</option>' +
+    apps.filter(a => !(cfg.exclude || []).includes(a)).map(a => `<option>${esc(a)}</option>`).join('');
 }
 $('#appPick').onfocus = refreshApps;
 $('#appPick').onchange = () => { addExclusion($('#appPick').value); $('#appPick').value = ''; };
-$('#addApp').onclick = () => { addExclusion($('#appName').value); $('#appName').value = ''; };
-$('#appName').onkeydown = e => { if (e.key === 'Enter') $('#addApp').click(); };
 
 /* ================= Barra de título ================= */
 const setMax = m => {
