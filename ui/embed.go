@@ -4,5 +4,5 @@ package ui
 
 import "embed"
 
-//go:embed index.html
+//go:embed index.html icon.png
 var Files embed.FS

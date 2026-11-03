@@ -175,8 +175,8 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 /* barra de título própria (a do Windows foi tirada: internal/winapi/frame.go) */
 #tb{position:fixed;inset:0 0 auto;height:var(--tb);z-index:30;display:flex;align-items:center;background:var(--bg)}
 html.fs #tb{display:none}
-#tb .wm{flex:1;padding-left:12px;font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
-#tb .wm span{color:var(--accent)}
+#tb .wm{flex:1;display:flex;align-items:center;gap:7px;padding-left:10px;font-size:13px;font-weight:700;letter-spacing:-.01em;color:var(--fg)}
+#tb .wm img{width:20px;height:20px;pointer-events:none}
 html.blur #tb .wm,html.blur #tb .wb{opacity:.5}
 #tb .wb{all:unset;width:46px;height:100%;display:grid;place-items:center;color:var(--fg);font:10px "Segoe Fluent Icons","Segoe MDL2 Assets"}
 #tb .wb:hover{background:#ffffff14}
@@ -191,7 +191,7 @@ html.max #tb .rz{display:none}
 <body>
 
 <div id="tb">
-  <div class="wm"><span>familia</span>share</div>
+  <div class="wm"><img src="icon.png" alt="" draggable="false">familiashare</div>
   <button class="wb" id="wMin" aria-label="Minimizar" title="Minimizar">&#xE921;</button>
   <button class="wb" id="wMax" aria-label="Maximizar" title="Maximizar">&#xE922;</button>
   <button class="wb" id="wClose" aria-label="Fechar" title="Fechar">&#xE8BB;</button>
