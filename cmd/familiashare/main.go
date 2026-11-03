@@ -140,7 +140,7 @@ func main() {
 		func() winapi.CloseAction { return closeActions[svc.OnClose()] },
 		func() {
 			if svc.FirstTrayHide() {
-				tray.Notify(appName+" continua aberto", "Ele fica na bandeja, nos ícones ao lado do relógio. Para sair, clique com o botão direito no ícone → Sair.")
+				tray.Notify(appName+" continua aberto", "Ele fica na barra de tarefas, nos ícones escondidos. Para sair, clique com o botão direito no ícone → Sair.")
 			}
 		},
 		w.Terminate)

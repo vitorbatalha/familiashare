@@ -46,8 +46,8 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 ### Adicionado
 - Agora é possível ver quem está assistindo sua transmissão.
 - O aplicativo avisa quando alguém começa a assistir sua tela.
-- Ao fechar a janela, o familiashare minimiza pra barra de tarefas. Você pode alterar isso
-  nas configurações.
+- Ao fechar a janela, o familiashare continua aberto na barra de tarefas, nos ícones
+  escondidos. Você pode alterar isso nas configurações.
 - Registro das transmissões, para diagnóstico de erros. Ele fica salvo localmente, ocupa
   no máximo 1 MB.
 
