@@ -12,6 +12,7 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ### Alterado
 - Visual: a barra do app agora mostra a galinha-camarão ao lado do nome, todo em branco.
+- Visual: os botões e o olhinho voltam a não ter laranja; fica só o branco mais quente.
 
 ## [0.3.0] — 2026-11-02
 
