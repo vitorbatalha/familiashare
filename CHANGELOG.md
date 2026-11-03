@@ -8,6 +8,11 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.3.1] — 2026-11-03
+
+### Alterado
+- Visual: a barra do app agora mostra a galinha-camarão ao lado do nome, todo em branco.
+
 ## [0.3.0] — 2026-11-02
 
 ### Adicionado
@@ -66,7 +71,8 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 - Atualização automática.
 - Imagem codificada pela placa de vídeo (NVIDIA, AMD, Intel), até 60 fps; 12 Mbps por padrão.
 
-[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.3.0...HEAD
+[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.1
 [0.3.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.0
 [0.2.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.2
 [0.2.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.2.1
