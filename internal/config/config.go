@@ -24,8 +24,9 @@ type Config struct {
 	RoomPublic bool     `json:"roomPublic"`
 
 	// app
-	OnClose      string `json:"onClose"`      // botão de fechar: tray | minimize | quit
-	TrayHintSeen bool   `json:"trayHintSeen"` // já avisou que o app continua perto do relógio
+	OnClose       string `json:"onClose"`       // botão de fechar: tray | minimize | quit
+	TrayHintSeen  bool   `json:"trayHintSeen"`  // já avisou que o app continua perto do relógio
+	ShareHintSeen bool   `json:"shareHintSeen"` // já deu a dica de silenciar apps (eco) ao transmitir
 
 	// transmissão
 	Monitor int      `json:"monitor"` // índice em capture.ListMonitors()

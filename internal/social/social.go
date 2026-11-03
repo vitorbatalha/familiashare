@@ -554,6 +554,19 @@ func (a *Service) FirstTrayHide() bool {
 	return true
 }
 
+// FirstShareHint diz se ainda não foi dada a dica de silenciar apps na transmissão
+// (para evitar eco, ex.: Discord) e registra que foi.
+func (a *Service) FirstShareHint() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cfg.ShareHintSeen {
+		return false
+	}
+	a.cfg.ShareHintSeen = true
+	a.persist()
+	return true
+}
+
 /* ---------- Salas ---------- */
 
 // CreateRoom abre a sala desta pessoa (saindo da atual, se houver).
