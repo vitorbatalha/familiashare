@@ -150,13 +150,14 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *w
 		fs.Set(hwnd, on)
 		return fs.On()
 	})
+	// ao entrar numa sala a janela aumenta para caber o palco (e volta ao sair)
 	var sizer winapi.WatchSizer
 	w.Bind("goWatchWindow", func(on bool) {
 		if fs.On() {
 			return
 		}
 		if on {
-			sizer.Enlarge(hwnd, 1280, 760)
+			sizer.Enlarge(hwnd, 1280, 800)
 		} else {
 			sizer.Restore(hwnd)
 		}

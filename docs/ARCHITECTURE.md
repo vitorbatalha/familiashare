@@ -68,6 +68,10 @@ flowchart LR
 
 O áudio segue o mesmo caminho: WASAPI → PCM → FFmpeg (Opus 256 kbps estéreo) → RTP.
 
+Desde a 0.5.0 quem entra numa sala assiste sozinho a todas as telas e câmeras (a pessoa
+clica para parar). Por isso o upload de quem transmite é, na prática, o bitrate vezes o
+número de pessoas na sala (menos as que pararam de assistir).
+
 ### Escolha do encoder
 
 `candidatePipelines` ([pipeline.go](../internal/stream/pipeline.go)) monta a lista em

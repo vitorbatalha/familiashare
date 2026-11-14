@@ -26,8 +26,19 @@ button.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;fle
 p:empty{display:none}
 h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
 
-/* ===== Layout B: cabeçalho, abas, conteúdo e rodapé fixo (nada de rolar para achar botões) ===== */
-#app{height:calc(100% - var(--tb));margin-top:var(--tb);max-width:560px;margin-inline:auto;display:flex;flex-direction:column}
+/* ===== Layout: lateral (perfil, abas, conteúdo e rodapé fixo) e, numa sala, o palco com as telas à direita ===== */
+#app{height:calc(100% - var(--tb));margin-top:var(--tb);display:flex}
+html.fs #app{height:100%;margin-top:0}
+#side{width:360px;flex:none;display:flex;flex-direction:column;min-height:0;background:var(--foot);border-right:1px solid var(--line)}
+html:not(.room) #side{width:100%;max-width:560px;margin-inline:auto;background:transparent;border:0}
+html:not(.room) #stage,html.collapsed #side,html.fs #side{display:none}
+#showStage{display:none}
+/* janela estreita numa sala: só a lateral, com um botão para ver as telas */
+@media (max-width:759px){
+  html.room:not(.collapsed) #stage{display:none}
+  html.room:not(.collapsed) #side{width:100%;border:0}
+  html.room #showStage{display:block}
+}
 #top{flex:none;padding:8px 16px 12px;display:flex;align-items:center;gap:10px}
 #top .me{flex:1;min-width:0}
 #myName{all:unset;display:block;width:100%;font-weight:700;font-size:15px;cursor:text;border-radius:6px;padding:1px 4px;margin-left:-4px}
@@ -47,8 +58,7 @@ h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;let
 #foot .row>button:not(.main){height:46px}
 #foot .icon{width:46px;height:46px;border-radius:11px}
 #camBtn.live{background:var(--red);border-color:var(--red);color:#fff}
-#camSelf{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#000;transform:scaleX(-1);cursor:zoom-in;transition:width .15s}
-#camSelf.big{width:100%;cursor:zoom-out}
+#leaveRoom:hover{background:var(--red);border-color:var(--red);color:#fff}
 #ver{font-size:11px;color:#55555c;text-align:center;padding:8px 0 0;margin-top:auto}
 
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px}
@@ -67,6 +77,13 @@ h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;let
 .item .x{all:unset;cursor:pointer;color:var(--mute);padding:0 4px;font-size:16px;flex:none;opacity:0}
 .item:hover .x,.item .x:focus{opacity:1}
 .item .x:hover{color:var(--red)}
+/* na sala: ícones de tela e câmera de cada pessoa (vermelho = assistindo; clique para parar/voltar) */
+.item .live{display:flex;gap:4px;flex:none}
+.item .live button{all:unset;cursor:pointer;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--red);background:#2a1416}
+.item .live button.off{color:#6b6b72;background:#1a1a1d}
+.item .live button:hover{outline:1px solid #ffffff30}
+.item .live span{width:32px;height:32px;display:grid;place-items:center;color:var(--red)}
+#members .item .name{font-size:15px}
 .st{width:9px;height:9px;border-radius:50%;background:#4a4a50;flex:none}
 .st.on{background:var(--green)}
 .st.live{background:var(--red);animation:p 1.6s infinite}
@@ -140,32 +157,45 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .toast button:hover{color:var(--fg)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}}
 
-/* ===== Assistir: grade de telas estilo Discord ===== */
-#watch{position:fixed;inset:var(--tb) 0 0;background:#000;z-index:5;display:flex;flex-direction:column}
-#vbar{display:flex;gap:6px;align-items:center;padding:8px;flex-wrap:wrap;transition:opacity .2s}
-#vbar button{background:#1a1a1d;color:#fff;border-color:#33333a;padding:6px 10px;font-size:12px;width:auto;flex:none}
-#vbar button.on{background:#fff;color:#000;border-color:#fff}
-#vbar .sp{flex:1}
-#vbar .lbl{color:var(--mute);font-size:12px;margin:0 2px 0 8px}
-#tiles{flex:1;min-height:0;display:grid;gap:6px;padding:0 6px 6px}
-.tile{position:relative;background:#0d0d0f;border-radius:8px;overflow:hidden;min-width:0;min-height:0;cursor:pointer;outline:2px solid transparent;outline-offset:-2px}
-.tile:hover{outline-color:#ffffff22}
+/* ===== Palco: todas as telas e câmeras da sala (estilo Discord) ===== */
+#stage{flex:1;min-width:0;display:flex;flex-direction:column;background:#000;position:relative}
+#sbar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;transition:opacity .2s;z-index:3}
+#sbar .t{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#sbar .sp{flex:1}
+#sbar button{background:#1a1a1d;color:#fff;border-color:#33333a;padding:8px 12px;font-size:13px;width:auto;flex:none;display:flex;align-items:center;gap:6px}
+#sbar button.icon{width:38px;height:38px;padding:0;border-radius:9px;justify-content:center}
+html.fs #sbar{position:absolute;inset:0 0 auto;background:#000a}
+html.fs #stage.idle{cursor:none}
+html.fs #stage.idle #sbar{opacity:0}
+#tiles{flex:1;min-height:0;display:grid;gap:8px;padding:0 10px 10px}
+html.fs #tiles{padding:0;gap:4px}
+.tile{position:relative;background:#0d0d0f;border-radius:10px;overflow:hidden;min-width:0;min-height:0;cursor:pointer;outline:2px solid transparent;outline-offset:-2px}
+.tile:hover{outline-color:#ffffff30}
+.tile.main{cursor:default}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
+.tile.self video{transform:scaleX(-1)}
 .tile .msg{position:absolute;inset:0;display:grid;place-items:center;color:var(--mute);text-align:center;padding:12px;pointer-events:none;font-size:13px}
-.tile .tag{position:absolute;left:8px;bottom:8px;display:flex;gap:6px;align-items:center;max-width:calc(100% - 16px)}
-.tile .tag span{background:#000b;color:#fff;font-size:12px;font-weight:600;padding:3px 8px;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tile .tag button{all:unset;background:#000b;color:#fff;font-size:12px;padding:3px 7px;border-radius:6px;cursor:pointer;flex:none}
-.tile .tag button:hover{background:#000}
+.tile .tag{position:absolute;left:10px;bottom:10px;display:flex;gap:6px;align-items:center;max-width:calc(100% - 20px)}
+.tile .tag>span:first-child{background:#000b;color:#fff;font-size:13px;font-weight:600;padding:5px 10px;border-radius:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.small .tag>span:first-child{font-size:12px;padding:3px 8px}
+.tile button.b{all:unset;background:#000b;color:#fff;padding:5px 8px;border-radius:7px;cursor:pointer;display:grid;place-items:center;flex:none}
+.tile button.b:hover{background:#000}
 /* volume: o slider aparece ao passar o mouse no botão de som */
-.tile .vol{display:flex;align-items:center;background:#000b;border-radius:6px;flex:none}
-.tile .vol button{background:none}
+.tile .vol{display:flex;align-items:center;background:#000b;border-radius:7px;flex:none}
+.tile .vol button.b{background:none}
 .tile .vol input{-webkit-appearance:auto;appearance:auto;width:0;padding:0;margin:0;border:0;background:none;accent-color:#fff;opacity:0;cursor:pointer;transition:width .15s,opacity .15s,margin .15s}
-.tile .vol:hover input,.tile .vol input:focus{width:96px;opacity:1;margin:0 8px 0 2px}
-.tile .stats{position:absolute;left:8px;top:8px;right:8px;font-size:11px;color:#fffc;text-shadow:0 0 4px #000;pointer-events:none;font-variant-numeric:tabular-nums}
+.tile .vol:hover input,.tile .vol input:focus{width:110px;opacity:1;margin:0 10px 0 2px}
+.tile .tools{position:absolute;right:10px;top:10px;display:flex;gap:6px;opacity:0;transition:opacity .15s}
+.tile:hover .tools{opacity:1}
+.tile .tools button.b{width:34px;height:34px;padding:0;border-radius:8px}
+.tile .tools button.x:hover{background:var(--red)}
+.tile .stats{position:absolute;left:10px;top:10px;right:96px;font-size:11px;color:#fffc;text-shadow:0 0 4px #000;pointer-events:none;font-variant-numeric:tabular-nums}
 .tile.small .stats{display:none}
-#wempty{flex:1;display:grid;place-items:center;color:var(--mute)}
-#watch.idle{cursor:none}
-#watch.idle #vbar{opacity:0}
+.tile.off{background:transparent;border:1px dashed #3a3a40;cursor:default;display:grid;place-items:center;text-align:center;padding:8px}
+.tile.off .in{display:grid;gap:8px;justify-items:center;color:var(--mute);font-size:13px}
+.tile.off b{color:var(--fg)}
+.tile.small.off .in{font-size:12px;gap:4px}
+#wempty{flex:1;display:grid;place-items:center;color:var(--mute);text-align:center;line-height:1.7;padding:20px}
 /* aviso de versão nova */
 #upd{position:fixed;top:calc(var(--tb) + 10px);left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:#1d1d21;border:1px solid #3a3a42;border-radius:10px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px #0008;width:max-content;max-width:calc(100% - 24px)}
 #upd span{font-size:13px;min-width:0}
@@ -210,6 +240,7 @@ html.max #tb .rz{display:none}
 </div>
 
 <div id="app">
+ <aside id="side">
   <header id="top">
     <div class="me">
       <input id="myName" maxlength="32" spellcheck="false" aria-label="Seu nome (clique para mudar)" title="Clique para mudar seu nome">
@@ -221,8 +252,8 @@ html.max #tb .rz{display:none}
   </header>
 
   <nav id="tabs">
-    <button data-tab="friends">Amigos<span class="count" id="tabCount" hidden></span></button>
     <button data-tab="room" id="tabRoom">Sala</button>
+    <button data-tab="friends">Amigos<span class="count" id="tabCount" hidden></span></button>
   </nav>
 
   <!-- aba Amigos -->
@@ -243,15 +274,10 @@ html.max #tb .rz{display:none}
     <div class="empty" id="noRoom">Você não está em uma sala.<br>Abra a sua aqui embaixo, ou entre na de um amigo pela aba Amigos.</div>
     <div id="inRoom" hidden style="display:flex;flex-direction:column;gap:10px">
       <div class="list" id="asks"></div>
-      <div class="head"><h2 id="streamsTitle">Transmitindo</h2><button class="badge" id="roomBadge" title=""></button></div>
-      <div class="list" id="streams"></div>
-      <button class="ghost" id="openWatch" hidden>Ver as telas que você está assistindo</button>
-      <div class="head" style="margin-top:8px"><h2>Na sala</h2></div>
+      <div class="head"><h2 id="membersTitle">Na sala</h2><button class="badge" id="roomBadge" title=""></button></div>
       <div class="list" id="members"></div>
-      <div id="camSelfBox" hidden style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
-        <h2>Sua câmera</h2>
-        <video id="camSelf" muted playsinline autoplay title="Clique para aumentar"></video>
-      </div>
+      <p class="muted" id="liveHelp" style="padding:0 8px">Os ícones vermelhos são o que você está assistindo. Clique num ícone para parar ou voltar a assistir.</p>
+      <button class="ghost" id="showStage">Ver as telas</button>
     </div>
   </section>
 
@@ -279,10 +305,32 @@ html.max #tb .rz{display:none}
         <button class="icon" id="openSettings" aria-label="Configurações da transmissão" title="Configurações da transmissão">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>
         </button>
-        <button class="ghost" id="leaveRoom" style="width:auto;padding:0 14px">Sair</button>
+        <button class="icon" id="leaveRoom" aria-label="Sair da sala" title="Sair da sala">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+        </button>
       </div>
     </div>
   </footer>
+ </aside>
+
+ <!-- palco: todas as telas e câmeras da sala; clique numa para pôr em destaque -->
+ <main id="stage">
+  <div id="sbar">
+    <button class="icon" id="collapse" aria-label="Esconder a lateral" title="Esconder a lateral">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></svg>
+    </button>
+    <span class="t" id="stageTitle"></span>
+    <span class="sp"></span>
+    <button id="layoutBtn" title="Mostrar todas do mesmo tamanho">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg><span>Grade</span>
+    </button>
+    <button id="fsBtn">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><span>Tela cheia (F)</span>
+    </button>
+  </div>
+  <div id="tiles"></div>
+  <div id="wempty" hidden>Ninguém está transmitindo ainda.<br>Compartilhe sua tela ou ligue a câmera aqui ao lado.</div>
+ </main>
 </div>
 
 <!-- configurações da transmissão -->
@@ -344,20 +392,6 @@ html.max #tb .rz{display:none}
       <div id="news"></div>
     </section>
   </main>
-</div>
-
-<!-- ================= Assistir ================= -->
-<div id="watch" hidden>
-  <div id="vbar">
-    <button id="vback">← Sala</button>
-    <span class="lbl">Transmitindo:</span>
-    <span id="vtabs" style="display:flex;gap:6px;flex-wrap:wrap"></span>
-    <span class="sp"></span>
-    <button id="vgrid" title="Mostrar todas lado a lado">Grade</button>
-    <button id="vfs">Tela cheia (F)</button>
-  </div>
-  <div id="tiles"></div>
-  <div id="wempty" hidden>Escolha acima quem você quer assistir.</div>
 </div>
 
 <div id="toasts"></div>
@@ -426,8 +460,10 @@ function render() {
   if (!cfg) initSettings(S.config);
   const inRoom = !!S.room;
   // entrou numa sala: vai para a aba Sala; saiu: volta para Amigos
-  if (inRoom && !wasInRoom) tab = 'room';
-  if (!inRoom && wasInRoom) tab = 'friends';
+  // e a janela aumenta para caber o palco (e volta ao tamanho de antes ao sair)
+  if (inRoom && !wasInRoom) { tab = 'room'; goWatchWindow(true); }
+  if (!inRoom && wasInRoom) { tab = 'friends'; goWatchWindow(false); document.documentElement.classList.remove('collapsed'); }
+  document.documentElement.classList.toggle('room', inRoom);
   wasInRoom = inRoom;
   renderHeader(); renderTabs(); renderFriends(); renderRoom(); renderFooter();
   syncWatch();
@@ -563,10 +599,11 @@ document.addEventListener('click', e => {
     case 'decline': goDeclineInvite(code); break;
     case 'remove': if (confirm('Remover este amigo?')) goRemoveFriend(code); break;
     case 'invite': goInvite(code); break;
-    case 'watch': watchAdd(code); break;
-    case 'toggle': sessions.has(code) ? watchRemove(code) : watchAdd(code); break;
+    case 'toggle': stopped.has(code) ? startWatch(code) : stopWatch(code); break;
+    case 'close': stopWatch(code); break;
+    case 'rewatch': startWatch(code); break;
     case 'mute': toggleMute(code); break;
-    case 'close': watchRemove(code); break;
+    case 'tilefs': focus = code; mode = 'focus'; picked = true; layout(); if (!fsOn) toggleFs(); break;
   }
   setTimeout(refresh, 150);
 });
@@ -584,30 +621,12 @@ function renderRoom() {
   $('#noRoom').hidden = !!r; $('#inRoom').hidden = !r;
   if (!r) return;
   const me = S.code, watchers = new Set(S.host.watchers || []);
-  // cada tela e cada câmera é um item: { m, cam, key } (key = como a sessão de assistir é guardada)
-  const streams = [];
-  for (const m of r.members) {
-    if (m.streaming) streams.push({ m, cam: false, key: m.code });
-    if (m.camera) streams.push({ m, cam: true, key: 'cam:' + m.code });
-  }
-  $('#streamsTitle').textContent = `Transmitindo · ${streams.length}`;
+  $('#membersTitle').textContent = `Na sala · ${r.members.length}`;
   const badge = $('#roomBadge');
   badge.textContent = r.public ? 'pública' : 'particular';
   badge.disabled = !S.isOwner;
   badge.title = S.isOwner ? `Clique para tornar ${r.public ? 'particular (só convidados)' : 'pública (amigos entram sem convite)'}` : '';
-
-  let sh = '';
-  for (const { m, cam, key } of streams) {
-    const isMe = m.code === me, n = cam ? camPeers.size : watchers.size;
-    const sub = [cam ? 'câmera' : 'tela', isMe ? `você · ${n} assistindo` : (!cam && watchers.has(m.code) ? 'assistindo você também' : '')].filter(Boolean).join(' · ');
-    const action = isMe ? '' : sessions.has(key)
-      ? `<button class="ghost small" data-act="watch" data-code="${esc(key)}">Assistindo</button>`
-      : `<button class="small" data-act="watch" data-code="${esc(key)}">Assistir</button>`;
-    sh += `<div class="item box"><span class="st live"></span><div class="who"><div class="name">${esc(m.name)}</div>
-      <div class="sub">${esc(sub)}</div></div>${action}</div>`;
-  }
-  setHTML('#streams', sh || '<p class="muted" style="padding:4px 2px">Ninguém transmitindo ainda.</p>');
-  $('#openWatch').hidden = sessions.size === 0 || !$('#watch').hidden;
+  $('#stageTitle').textContent = S.isOwner ? 'Sua sala' : `Sala de ${r.ownerName}`;
 
   // (dono) pedidos para entrar, de quem não é amigo dele
   let ah = '';
@@ -616,7 +635,15 @@ function renderRoom() {
   setHTML('#asks', ah);
 
   const friends = new Set(S.friends.map(f => f.code)), pending = new Set(S.pending);
-  let mh = '';
+  let mh = '', anyLive = false;
+  // botão de tela/câmera da pessoa: vermelho = assistindo; clique para parar ou voltar
+  const liveBtn = (key, cam, name) => {
+    anyLive = true;
+    const on = !stopped.has(key), what = cam ? 'a câmera' : 'a tela';
+    const title = key === 'self' ? (on ? 'Esconder sua câmera aqui (ela continua ligada para os outros)' : 'Mostrar sua câmera aqui')
+      : on ? `Parar de assistir ${what} de ${name}` : `Assistir ${what} de ${name}`;
+    return `<button class="${on ? '' : 'off'}" data-act="toggle" data-code="${esc(key)}" title="${esc(title)}" aria-label="${esc(title)}">${cam ? IC.cam : IC.screen}</button>`;
+  };
   for (const m of r.members) {
     const isMe = m.code === me, notes = [];
     if (m.code === r.owner) notes.push('dono');
@@ -624,13 +651,23 @@ function renderRoom() {
     // quem está na sala e ainda não é amigo: dá para adicionar daqui
     const add = isMe || friends.has(m.code) ? '' : pending.has(m.code) ? '<span class="muted">pedido enviado</span>'
       : `<button class="ghost small" data-act="befriend" data-code="${esc(m.code)}">Adicionar</button>`;
-    mh += `<div class="item"><span class="st ${m.streaming || m.camera ? 'live' : 'on'}"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div></div>
-      <span class="muted">${esc(notes.join(' · '))}</span>${add}</div>`;
+    let live = '';
+    if (isMe) {
+      if (m.streaming) live += `<span title="Você está compartilhando a tela">${IC.screen}</span>`;
+      if (camStream) live += liveBtn('self', true);
+    } else {
+      if (m.streaming) live += liveBtn(m.code, false, m.name);
+      if (m.camera) live += liveBtn('cam:' + m.code, true, m.name);
+    }
+    mh += `<div class="item"><span class="st on"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div>${notes.length ? `<div class="sub">${esc(notes.join(' · '))}</div>` : ''}</div>
+      ${add}<span class="live">${live}</span></div>`;
   }
   setHTML('#members', mh);
+  $('#liveHelp').hidden = !anyLive;
 }
 $('#roomBadge').onclick = () => { if (S.isOwner) { goSetRoomPublic(!S.room.public); setTimeout(refresh, 150); } };
-$('#openWatch').onclick = () => showWatch();
+$('#showStage').onclick = () => { document.documentElement.classList.add('collapsed'); layout(); };
+$('#collapse').onclick = () => { document.documentElement.classList.toggle('collapsed'); layout(); };
 
 /* ================= Rodapé ================= */
 function renderFooter() {
@@ -644,7 +681,8 @@ function renderFooter() {
   $('#share').classList.toggle('live', live);
   renderCam();
   $('#codec').disabled = live;
-  $('#leaveRoom').textContent = S.isOwner ? 'Encerrar' : 'Sair';
+  $('#leaveRoom').title = S.isOwner ? 'Encerrar a sala' : 'Sair da sala';
+  $('#leaveRoom').setAttribute('aria-label', $('#leaveRoom').title);
   let st;
   if (h.state === 'starting') st = 'Iniciando…';
   else if (h.state === 'live') st = `Ao vivo: ${h.width}×${h.height} @ ${Math.round(h.fps)} fps · ${h.mbps.toFixed(1)} Mbps` + (h.audio ? ` · áudio: ${h.audio}` : '');
@@ -819,64 +857,80 @@ addEventListener('resize', () => { clearTimeout(maxTimer); maxTimer = setTimeout
 addEventListener('blur', () => document.documentElement.classList.add('blur'));
 addEventListener('focus', () => document.documentElement.classList.remove('blur'));
 goWindow('state').then(setMax);
-const setFs = on => { fsOn = on; document.documentElement.classList.toggle('fs', on); };
+const setFs = on => {
+  fsOn = on; document.documentElement.classList.toggle('fs', on);
+  $('#fsBtn span').textContent = on ? 'Sair da tela cheia (Esc)' : 'Tela cheia (F)';
+};
 
-/* ================= Assistir: várias telas ao mesmo tempo ================= */
-// Uma sessão por tela ou câmera assistida: { code, who, cam, pc, tile, video, lastBytes, ping, timers }.
-// code é a chave: o código da pessoa (tela) ou "cam:<código>" (câmera); who é sempre a pessoa.
+/* ================= Palco: todas as telas e câmeras da sala ================= */
+// Numa sala o app assiste sozinho a tudo o que está sendo transmitido (telas e câmeras,
+// inclusive a sua câmera); a pessoa clica para PARAR. Uma sessão por tela ou câmera
+// assistida: { code, who, cam, pc, tile, video, lastBytes, ping, timers }. code é a chave:
+// o código da pessoa (tela) ou "cam:<código>" (câmera); "self" é a minha câmera.
 const sessions = new Map();
+const stopped = new Set();   // chaves que a pessoa parou de assistir (vale enquanto estiver na sala)
+const offTiles = new Map();  // chave → quadro tracejado "Você parou de assistir"
+let selfTile = null;         // a minha câmera no palco
 const whoOf = key => key.replace(/^cam:/, '');
-let focus = null;        // código em destaque (null = grade com todas do mesmo tamanho)
+let focus = null, mode = 'focus'; // 'focus': uma grande e o resto na coluna; 'grid': todas iguais
+let picked = false;               // a pessoa escolheu o destaque (senão vai a primeira tela)
 let fsOn = false, showStats = true;
-const nameOf = key => (S && S.names[whoOf(key)]) || whoOf(key);
-
-function showWatch() {
-  if ($('#watch').hidden) { $('#watch').hidden = false; goWatchWindow(true); }
-  layout();
-}
+const nameOf = key => key === 'self' ? 'Você' : (S && S.names[whoOf(key)]) || whoOf(key);
+const svg = (d, w = 16) => `<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const IC = {
+  screen: svg('<rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>', 17),
+  cam: svg('<path d="M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14"/><rect x="3" y="6" width="12" height="12" rx="2"/>', 17),
+  x: svg('<path d="M6 6l12 12M18 6L6 18"/>'),
+  fs: svg('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'),
+  vol: svg('<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/>'),
+  low: svg('<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'),
+  mute: svg('<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>'),
+};
+const tagOf = key => key === 'self' ? 'Sua câmera' : nameOf(key) + (key.startsWith('cam:') ? ' · câmera' : '');
+// pede a tela (ao Go/Pion de quem transmite) ou a câmera (à página de quem mostra)
+const askStream = s => s.cam ? goCamSignal(s.who, 'cam-watch', '') : goSignal(s.who, 'watch', '', null);
+// botões do canto do quadro: tela cheia e parar de assistir (na minha câmera: esconder)
+const tools = key => `<div class="tools"><button class="b" data-act="tilefs" data-code="${esc(key)}" title="Tela cheia" aria-label="Tela cheia">${IC.fs}</button>` +
+  `<button class="b x" data-act="close" data-code="${esc(key)}" title="${key === 'self' ? 'Esconder sua câmera aqui (ela continua ligada)' : 'Parar de assistir'}" aria-label="${key === 'self' ? 'Esconder sua câmera' : 'Parar de assistir'}">${IC.x}</button></div>`;
 
 function closeWatch() {
   for (const code of [...sessions.keys()]) watchRemove(code, true);
-  focus = null;
+  for (const el of offTiles.values()) el.remove();
+  offTiles.clear(); stopped.clear();
+  if (selfTile) { selfTile.remove(); selfTile = null; }
+  focus = null; mode = 'focus'; picked = false;
   if (fsOn) { goFullscreen(false); setFs(false); }
-  if (!$('#watch').hidden) { $('#watch').hidden = true; goWatchWindow(false); }
 }
+
+function stopWatch(key) { stopped.add(key); if (key !== 'self') watchRemove(key, true); syncTiles(); }
+function startWatch(key) { stopped.delete(key); syncTiles(); }
 
 function watchAdd(code) {
-  if (!sessions.has(code)) {
-    const tile = document.createElement('div');
-    tile.className = 'tile';
-    const cam = code.startsWith('cam:'), who = whoOf(code);
-    tile.innerHTML = `<video playsinline autoplay></video><div class="msg"></div><div class="stats"></div>
-      <div class="tag"><span></span>${cam ? '' : `<span class="vol"><button data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)">🔊</button><input type="range" min="0" max="100" title="Volume"></span>`}<button data-act="close" data-code="${esc(code)}" title="Parar de assistir">✕</button></div>`;
-    tile.querySelector('.tag span').textContent = tagOf(code);
-    const s = { code, who, cam, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
-    if (cam) s.video.muted = true; // câmera não tem som
-    else {
-      const range = tile.querySelector('.vol input');
-      range.value = Math.round((volumes.get(code) ?? 1) * 100);
-      s.video.volume = range.value / 100;
-      range.oninput = () => {
-        const v = range.value / 100;
-        s.video.volume = v; volumes.set(code, v);
-        if (v > 0 && s.muted) toggleMute(code); else updateVolIcon(s); // mexer no volume tira o mudo
-      };
-    }
-    const own = e => e.target.closest('button, .vol');
-    tile.onclick = e => { if (!own(e)) { focus = focus === code ? null : code; layout(); } };
-    tile.ondblclick = e => { if (!own(e)) toggleFs(); };
-    sessions.set(code, s);
-    $('#tiles').appendChild(tile);
-    tileMsg(s, `conectando em ${nameOf(code)}…`);
-    const ask = () => { if (sessions.get(code) === s && !s.pc) { askStream(s); s.timers.push(setTimeout(ask, 6000)); } };
-    ask();
+  if (sessions.has(code)) return;
+  const tile = document.createElement('div');
+  tile.className = 'tile'; tile.dataset.key = code;
+  const cam = code.startsWith('cam:'), who = whoOf(code);
+  tile.innerHTML = `<video playsinline autoplay></video><div class="msg"></div><div class="stats"></div>
+    <div class="tag"><span></span>${cam ? '' : `<span class="vol"><button class="b" data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)" aria-label="Som">${IC.vol}</button><input type="range" min="0" max="100" title="Volume" aria-label="Volume"></span>`}</div>${tools(code)}`;
+  tile.querySelector('.tag span').textContent = tagOf(code);
+  const s = { code, who, cam, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
+  if (cam) s.video.muted = true; // câmera não tem som
+  else {
+    const range = tile.querySelector('.vol input');
+    range.value = Math.round((volumes.get(code) ?? 1) * 100);
+    s.video.volume = range.value / 100;
+    range.oninput = () => {
+      const v = range.value / 100;
+      s.video.volume = v; volumes.set(code, v);
+      if (v > 0 && s.muted) toggleMute(code); else updateVolIcon(s); // mexer no volume tira o mudo
+    };
   }
-  showWatch();
+  sessions.set(code, s);
+  $('#tiles').appendChild(tile);
+  tileMsg(s, `conectando em ${nameOf(code)}…`);
+  const ask = () => { if (sessions.get(code) === s && !s.pc) { askStream(s); s.timers.push(setTimeout(ask, 6000)); } };
+  ask();
 }
-
-const tagOf = key => (key.startsWith('cam:') ? '📷 ' : '') + nameOf(key);
-// pede a tela (ao Go/Pion de quem transmite) ou a câmera (à página de quem mostra)
-const askStream = s => s.cam ? goCamSignal(s.who, 'cam-watch', '') : goSignal(s.who, 'watch', '', null);
 
 function watchRemove(code, silent) {
   const s = sessions.get(code); if (!s) return;
@@ -885,7 +939,6 @@ function watchRemove(code, silent) {
   if (s.pc) s.pc.close();
   s.video.srcObject = null; s.tile.remove();
   sessions.delete(code);
-  if (focus === code) focus = null;
   if (!silent) layout();
 }
 
@@ -904,72 +957,125 @@ function toggleMute(code) {
 
 function updateVolIcon(s) {
   const v = s.muted ? 0 : s.video.volume;
-  s.tile.querySelector('[data-act=mute]').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
+  s.tile.querySelector('[data-act=mute]').innerHTML = v === 0 ? IC.mute : v < 0.5 ? IC.low : IC.vol;
 }
 
-// Grade estilo Discord. Em cima ficam as maiores: a que foi clicada (destaque) ou, sem
-// destaque, as telas; embaixo, uma fileira com o resto (as câmeras, ou as outras quando há
-// destaque). Só telas ou só câmeras, sem destaque: todas do mesmo tamanho.
-// As posições são dadas numa grade de 60 colunas (divide por 1 a 6) para não tirar os
-// vídeos do lugar na página — mover um <video> o faria parar.
-function layout() {
-  const tiles = $('#tiles'), list = [...sessions.values()], n = list.length;
-  $('#wempty').hidden = n > 0; tiles.hidden = n === 0;
-  if (focus && !sessions.has(focus)) focus = null;
-  const focused = focus && n > 1;
-  const screens = list.filter(s => !s.cam), cams = list.filter(s => s.cam);
-  const big = focused ? [sessions.get(focus)] : (screens.length && cams.length ? screens : list);
-  const small = list.filter(s => !big.includes(s));
-  tiles.classList.toggle('focus', !!focused);
-
-  const W = tiles.clientWidth || innerWidth, H = (tiles.clientHeight || innerHeight) * (small.length ? 0.82 : 1);
-  let cols = 1, bestArea = 0; // escolhe o número de colunas que deixa cada tela 16:9 maior
-  for (let c = 1; c <= Math.min(big.length, 6); c++) {
-    const r = Math.ceil(big.length / c), w = W / c, h = H / r, area = Math.min(w, h * 16 / 9) * Math.min(h, w * 9 / 16);
-    if (area > bestArea) { bestArea = area; cols = c; }
-  }
-  const rows = Math.ceil(big.length / cols), span = 60 / cols;
-  tiles.style.gridTemplateColumns = 'repeat(60, minmax(0,1fr))';
-  tiles.style.gridTemplateRows = `repeat(${rows}, minmax(0,1fr))` + (small.length ? ' minmax(0,18%)' : '');
-  big.forEach((s, i) => {
-    const row = Math.floor(i / cols), inRow = Math.min(cols, big.length - row * cols);
-    const start = (cols - inRow) * span / 2 + (i % cols) * span; // última linha incompleta fica centralizada
-    s.tile.classList.remove('small');
-    s.tile.style.gridRow = row + 1;
-    s.tile.style.gridColumn = `${Math.floor(start) + 1} / span ${span}`;
-  });
-  const sw = Math.min(12, Math.floor(60 / Math.max(small.length, 1))), left = Math.floor((60 - sw * small.length) / 2);
-  small.forEach((s, i) => {
-    s.tile.classList.add('small');
-    s.tile.style.gridRow = rows + 1;
-    s.tile.style.gridColumn = `${left + i * sw + 1} / span ${sw}`;
-  });
-  $('#vgrid').hidden = !focused;
-  renderWatchBar();
-}
-addEventListener('resize', () => { if (!$('#watch').hidden) layout(); });
-
-function renderWatchBar() {
-  if (!S || !S.room) return;
+// o que está sendo transmitido na sala agora (menos a minha tela: essa eu não assisto)
+function liveKeys() {
   const keys = [];
+  if (!S || !S.room) return keys;
   for (const m of S.room.members) if (m.code !== S.code) {
     if (m.streaming) keys.push(m.code);
     if (m.camera) keys.push('cam:' + m.code);
   }
-  setHTML('#vtabs', keys.map(k => `<button class="${sessions.has(k) ? 'on' : ''}" data-act="toggle" data-code="${esc(k)}" title="${sessions.has(k) ? 'Parar de assistir' : 'Assistir'}">${esc(tagOf(k))}</button>`).join('')
-    || '<span class="muted">ninguém</span>');
+  if (camStream) keys.push('self');
+  return keys;
 }
 
-// Mantém as sessões de acordo com a sala: quem parou de transmitir sai da grade.
+// O palco segue a sala: começa a assistir cada tela/câmera nova (menos as que a pessoa
+// parou) e põe um quadro tracejado no lugar das que ela parou.
+function syncTiles() {
+  const live = liveKeys();
+  for (const k of live) {
+    if (stopped.has(k)) continue;
+    if (k !== 'self') watchAdd(k);
+    else if (!selfTile) {
+      selfTile = document.createElement('div');
+      selfTile.className = 'tile self'; selfTile.dataset.key = 'self';
+      selfTile.innerHTML = `<video muted playsinline autoplay></video><div class="tag"><span>Sua câmera</span></div>${tools('self')}`;
+      selfTile.querySelector('video').srcObject = camStream;
+      $('#tiles').appendChild(selfTile);
+    }
+  }
+  if (selfTile && (!camStream || stopped.has('self'))) { selfTile.remove(); selfTile = null; }
+  for (const [k, el] of offTiles) if (!stopped.has(k) || !live.includes(k)) { el.remove(); offTiles.delete(k); }
+  for (const k of live) if (stopped.has(k)) {
+    let el = offTiles.get(k);
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'tile off'; el.dataset.key = k;
+      el.innerHTML = `<div class="in">${k === 'self' || k.startsWith('cam:') ? IC.cam : IC.screen}<span>${k === 'self' ? 'Escondida aqui' : 'Você parou de assistir'}<br><b></b></span>` +
+        `<button class="ghost small" data-act="rewatch" data-code="${esc(k)}">${k === 'self' ? 'Mostrar' : 'Assistir de novo'}</button></div>`;
+      $('#tiles').appendChild(el); offTiles.set(k, el);
+    }
+    el.querySelector('b').textContent = tagOf(k);
+  }
+  layout();
+}
+
+// Destaque: a tela escolhida grande e as outras numa coluna à direita (as paradas por
+// último). Grade: todas do mesmo tamanho. Os quadros nunca mudam de lugar na página (só
+// a posição na grade): mover um <video> o faria parar.
+function layout() {
+  const box = $('#tiles'), list = [...sessions.values()];
+  const active = [...list.filter(s => !s.cam), ...list.filter(s => s.cam)].map(s => s.tile);
+  if (selfTile) active.push(selfTile);
+  const all = [...active, ...offTiles.values()];
+  $('#wempty').hidden = all.length > 0; box.hidden = !all.length;
+  $('#layoutBtn').hidden = all.length < 2;
+  $('#layoutBtn span').textContent = mode === 'grid' ? 'Destaque' : 'Grade';
+  $('#layoutBtn').title = mode === 'grid' ? 'Uma grande e as outras ao lado' : 'Mostrar todas do mesmo tamanho';
+  if (!all.length) return;
+  const main = mode === 'focus' ? (picked && active.find(t => t.dataset.key === focus)) || active[0] : null;
+  for (const t of all) {
+    t.classList.toggle('main', t === main);
+    t.classList.toggle('small', !!main && t !== main);
+  }
+  const W = box.clientWidth || innerWidth, H = box.clientHeight || innerHeight;
+  if (main && all.length > 1) {
+    const rest = all.filter(t => t !== main);
+    const cw = Math.round(Math.max(180, Math.min(320, W * 0.22))), ch = Math.round(cw * 9 / 16);
+    box.style.gridTemplateColumns = `minmax(0,1fr) ${cw}px`;
+    box.style.gridTemplateRows = `repeat(${rest.length}, minmax(0,${ch}px)) minmax(0,1fr)`;
+    main.style.gridColumn = '1'; main.style.gridRow = `1 / ${rest.length + 2}`;
+    rest.forEach((t, i) => { t.style.gridColumn = '2'; t.style.gridRow = String(i + 1); });
+    return;
+  }
+  // grade: escolhe o número de colunas que deixa cada quadro 16:9 maior; grade de 60
+  // colunas (divide por 1 a 6) para centralizar a última linha incompleta
+  let cols = 1, best = 0;
+  for (let c = 1; c <= Math.min(all.length, 6); c++) {
+    const r = Math.ceil(all.length / c), w = W / c, h = H / r, area = Math.min(w, h * 16 / 9) * Math.min(h, w * 9 / 16);
+    if (area > best) { best = area; cols = c; }
+  }
+  const rows = Math.ceil(all.length / cols), span = 60 / cols;
+  box.style.gridTemplateColumns = 'repeat(60, minmax(0,1fr))';
+  box.style.gridTemplateRows = `repeat(${rows}, minmax(0,1fr))`;
+  all.forEach((t, i) => {
+    const row = Math.floor(i / cols), inRow = Math.min(cols, all.length - row * cols);
+    const start = (cols - inRow) * span / 2 + (i % cols) * span;
+    t.style.gridRow = String(row + 1);
+    t.style.gridColumn = `${Math.floor(start) + 1} / span ${span}`;
+  });
+}
+addEventListener('resize', () => { if (S && S.room) layout(); });
+
+// clicar num quadro o põe em destaque; clique duplo: tela cheia
+$('#tiles').onclick = e => {
+  const t = e.target.closest('.tile');
+  if (!t || t.classList.contains('off') || e.target.closest('button, .vol')) return;
+  if (mode === 'grid' || !t.classList.contains('main')) { mode = 'focus'; focus = t.dataset.key; picked = true; }
+  layout();
+};
+$('#tiles').ondblclick = e => {
+  const t = e.target.closest('.tile');
+  if (!t || t.classList.contains('off') || e.target.closest('button, .vol')) return;
+  mode = 'focus'; focus = t.dataset.key; picked = true; layout(); toggleFs();
+};
+
+// Mantém o palco de acordo com a sala: quem parou de transmitir sai, quem começou entra.
 function syncWatch() {
-  if (!S.room) { if (sessions.size || !$('#watch').hidden) closeWatch(); camStop(); return; }
+  if (!S.room) {
+    if (sessions.size || selfTile || offTiles.size || stopped.size) closeWatch();
+    camStop(); return;
+  }
   for (const s of sessions.values()) {
     s.tile.querySelector('.tag span').textContent = tagOf(s.code);
     const m = S.room.members.find(x => x.code === s.who);
     if (!m || !(s.cam ? m.camera : m.streaming)) streamEnded(s);
   }
   camSync();
-  if (!$('#watch').hidden) renderWatchBar();
+  syncTiles();
 }
 
 function streamEnded(s) {
@@ -1051,7 +1157,7 @@ function camUse(st) {
   const track = st.getVideoTracks()[0];
   track.contentHint = 'motion';
   track.onended = () => { toast('A câmera foi desconectada.'); camStop(); };
-  $('#camSelf').srcObject = st;
+  if (selfTile) selfTile.querySelector('video').srcObject = st;
   return track;
 }
 const camRelease = st => st.getTracks().forEach(t => { t.onended = null; t.stop(); });
@@ -1080,7 +1186,7 @@ function camStop() {
   for (const code of [...camPeers.keys()]) { camSend(code, 'cam-bye'); camDrop(code); }
   camRelease(camStream);
   camStream = null;
-  $('#camSelf').srcObject = null;
+  stopped.delete('self'); // ligar de novo mostra a câmera outra vez
   goSetCamera(false);
   refresh();
 }
@@ -1202,13 +1308,8 @@ function renderCam() {
   const on = !!camStream, b = $('#camBtn');
   b.classList.toggle('live', on); b.disabled = camBusy;
   b.title = on ? 'Desligar a câmera' : 'Ligar a câmera'; b.setAttribute('aria-label', b.title);
-  $('#camSelfBox').hidden = !on;
 }
 $('#camBtn').onclick = () => camStream ? camStop() : camStart();
-$('#camSelf').onclick = () => {
-  const big = $('#camSelf').classList.toggle('big');
-  $('#camSelf').title = big ? 'Clique para diminuir' : 'Clique para aumentar';
-};
 $('#camPick').onchange = () => { cfg.camera = $('#camPick').value; goSetCameraDevice(cfg.camera); camSwitch(); };
 
 setInterval(async () => {
@@ -1235,18 +1336,18 @@ setInterval(async () => {
 }, 1000);
 
 const toggleFs = async () => { setFs(await goFullscreen(!fsOn)); setTimeout(layout, 100); };
-$('#vfs').onclick = toggleFs;
-$('#vgrid').onclick = () => { focus = null; layout(); };
-$('#vback').onclick = () => { if (fsOn) toggleFs(); $('#watch').hidden = true; goWatchWindow(false); refresh(); };
+$('#fsBtn').onclick = toggleFs;
+$('#layoutBtn').onclick = () => { mode = mode === 'grid' ? 'focus' : 'grid'; layout(); };
 addEventListener('keydown', e => {
-  if ($('#watch').hidden || e.target.matches('input')) return;
+  if (!S || !S.room || !$('#prefs').hidden || !$('#sheet').hidden || e.target.matches('input:not([type=range]), select')) return;
   if (e.key === 'f' || e.key === 'F' || e.key === 'F11') { e.preventDefault(); toggleFs(); }
   else if (e.key === 'm' || e.key === 'M') { const scr = [...sessions.values()].filter(s => !s.cam), anyOn = scr.some(s => !s.muted); for (const s of scr) if (s.muted === !anyOn) toggleMute(s.code); }
   else if (e.key === 'i' || e.key === 'I') showStats = !showStats;
-  else if (e.key === 'Escape') { if (fsOn) toggleFs(); else $('#vback').click(); }
+  else if (e.key === 'Escape' && fsOn) toggleFs();
 });
+// sem mexer o mouse por um tempo, a barra de cima e o cursor somem
 let idle;
-$('#watch').onmousemove = () => { $('#watch').classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => $('#watch').classList.add('idle'), 2500); };
+$('#stage').onmousemove = () => { $('#stage').classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => $('#stage').classList.add('idle'), 2500); };
 
 refresh();
 </script>

@@ -20,8 +20,9 @@ amigos entram, e qualquer um pode compartilhar a tela ao mesmo tempo.
 - **Alta qualidade com pouco custo**: captura e codificação na GPU (NVIDIA NVENC, AMD AMF,
   Intel QuickSync), H.264 ou AV1, até 60 fps, bitrate configurável (12 Mbps por padrão).
   A tela é codificada **uma vez** e enviada a todos.
-- **Várias telas ao mesmo tempo**, em grade estilo Discord, com destaque, volume por
-  pessoa e tela cheia.
+- **Telas e câmeras de todos ao mesmo tempo**, estilo Discord: a lateral com quem está na
+  sala e os botões, e à direita tudo o que está sendo transmitido, com destaque, grade,
+  volume por pessoa e tela cheia.
 - **Áudio do PC sem o que você não quer**: exclua apps do áudio transmitido (ex.: o
   Discord, para seus amigos não ouvirem a call duas vezes).
 - **Amigos e salas**: adicione amigos por código; abra uma sala **pública** (amigos entram
@@ -49,11 +50,13 @@ codificação de vídeo (praticamente todas dos últimos ~8 anos).
   um amigo na aba **Amigos** e clique em **Adicionar**; ele aceita o pedido.
 - **Sala**: escolha *Pública* ou *Particular* e **Abrir minha sala**. Amigos em salas
   públicas aparecem com **Entrar**.
-- **Transmitir**: dentro da sala, **Compartilhar tela**. O botão de ajustes (ao lado)
-  abre as configurações: monitor, resolução, fps, bitrate, codec, encoder e áudio.
-- **Assistir**: clique em **Assistir** ao lado de quem está transmitindo. Clique numa tela
-  para destacar; passe o mouse no 🔊 para o volume. Teclas: `F` tela cheia, `M` som,
-  `I` estatísticas, `Esc` voltar.
+- **Transmitir**: dentro da sala, **Compartilhar tela** ou o botão da câmera. O botão de
+  ajustes (ao lado) abre as configurações: monitor, resolução, fps, bitrate, codec,
+  encoder, câmera e áudio.
+- **Assistir**: ao entrar numa sala, as telas e câmeras de todos aparecem sozinhas. Clique
+  numa para destacar; passe o mouse no alto-falante para o volume. Para parar de assistir
+  alguém, use o ✕ no quadro ou o ícone vermelho ao lado do nome. Teclas: `F` tela cheia,
+  `M` som, `I` estatísticas, `Esc` sai da tela cheia.
 
 ## Para desenvolvedores
 
