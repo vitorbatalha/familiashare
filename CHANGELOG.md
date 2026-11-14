@@ -8,6 +8,17 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.4.0] — 2026-11-14
+
+### Adicionado
+- Compartilhamento de câmera. Dentro de uma sala, ligue sua câmera pelo botão ao lado de
+  "Compartilhar tela".
+- Clique em qualquer câmera para deixá-la em destaque.
+- Agora é possível pedir para entrar na sala pública de alguém que não é seu amigo,
+  quando um amigo seu está nela. O dono da sala recebe uma notificação e pode aceitar ou
+  recusar.
+- Dentro de uma sala, é possível mandar pedido de amizade para quem ainda não é seu amigo.
+
 ## [0.3.2] — 2026-11-03
 
 ### Adicionado
