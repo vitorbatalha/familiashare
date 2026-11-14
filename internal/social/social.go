@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"log"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,6 +68,7 @@ type Member struct {
 	Code      string `json:"code"`
 	Name      string `json:"name"`
 	Streaming bool   `json:"streaming"`
+	Camera    bool   `json:"camera,omitempty"` // câmera ligada
 }
 
 type Room struct {
@@ -305,6 +307,12 @@ func (a *Service) OnMessage(m signaling.Message) {
 		}
 	case "unwatch":
 		a.host.HandleUnwatch(src)
+	case "cam-watch", "cam-unwatch", "cam-bye", "cam-sdp", "cam-ice":
+		// A câmera é capturada e enviada pela página (WebRTC do WebView2): aqui só
+		// passa a sinalização adiante, e só entre quem está na mesma sala.
+		if a.canWatchMe(src) {
+			a.toUI(map[string]any{"kind": m.P.T, "src": src, "d": m.P.D})
+		}
 	default:
 		a.onControl(src, m.P.T, m.P.D)
 	}
@@ -450,12 +458,16 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 			a.notice("A sala de " + a.room.OwnerName + " foi encerrada.")
 			a.leaveLocked(false)
 		}
-	case "share":
+	case "share", "cam":
 		var x struct{ On bool }
 		json.Unmarshal(d, &x)
 		if a.room != nil && a.room.Owner == a.cfg.MyCode {
 			if m := a.room.member(src); m != nil {
-				m.Streaming = x.On
+				if t == "cam" {
+					m.Camera = x.On
+				} else {
+					m.Streaming = x.On
+				}
 				broadcast = true
 			}
 		}
@@ -838,6 +850,50 @@ func (a *Service) mergeShareSettings(c config.Config) { // com a.mu travado
 	a.cfg.Codec, a.cfg.Encoder, a.cfg.Audio, a.cfg.Exclude = c.Codec, c.Encoder, c.Audio, c.Exclude
 	a.cfg.Normalize()
 	a.persist()
+}
+
+// SetCamera avisa a sala que a câmera desta pessoa ligou ou desligou.
+func (a *Service) SetCamera(on bool) {
+	a.mu.Lock()
+	r := a.room
+	if r == nil {
+		a.mu.Unlock()
+		return
+	}
+	owner := r.Owner == a.cfg.MyCode
+	if owner {
+		if m := r.member(a.cfg.MyCode); m != nil {
+			m.Camera = on
+		}
+	}
+	a.mu.Unlock()
+	log.Printf("câmera: %s", map[bool]string{true: "ligada", false: "desligada"}[on])
+	if owner {
+		a.broadcastRoom()
+	} else {
+		a.net.Send(r.Owner, "cam", map[string]bool{"on": on})
+	}
+}
+
+// SetCameraDevice guarda a câmera escolhida (o nome dela, como o Windows mostra).
+func (a *Service) SetCameraDevice(label string) {
+	a.mu.Lock()
+	a.cfg.Camera = label
+	a.persist()
+	a.mu.Unlock()
+}
+
+// CamSignal manda a sinalização da câmera (cam-watch, cam-sdp, cam-ice...) da página
+// para outra pessoa da sala.
+func (a *Service) CamSignal(dst, t string, d json.RawMessage) {
+	if !strings.HasPrefix(t, "cam-") || !a.canWatchMe(dst) {
+		return
+	}
+	if len(d) == 0 {
+		a.net.Send(dst, t, nil)
+		return
+	}
+	a.net.Send(dst, t, d)
 }
 
 // SignalFromUI repassa mensagens WebRTC do espectador (JS) para quem transmite.

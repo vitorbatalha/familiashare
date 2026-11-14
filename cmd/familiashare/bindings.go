@@ -5,6 +5,7 @@ package main
 // rede ou processos roda em goroutine.
 
 import (
+	"encoding/json"
 	"log"
 	"sort"
 	"strings"
@@ -63,6 +64,10 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *w
 	w.Bind("goSignal", func(dst, kind, sdp string, cand *webrtc.ICECandidateInit) {
 		go svc.SignalFromUI(dst, kind, sdp, cand)
 	})
+	// câmera: capturada e enviada pela própria página; aqui só o estado e a sinalização
+	w.Bind("goSetCamera", func(on bool) { go svc.SetCamera(on) })
+	w.Bind("goSetCameraDevice", func(label string) { svc.SetCameraDevice(label) })
+	w.Bind("goCamSignal", func(dst, t, d string) { go svc.CamSignal(dst, t, json.RawMessage(d)) })
 	w.Bind("goMonitors", func() []capture.Monitor { return capture.ListMonitors() })
 
 	// Extrair o FFmpeg e testar os encoders leva ~1 s: roda em segundo plano.

@@ -46,6 +46,8 @@ h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;let
 #foot .row>.main{flex:1;width:auto}
 #foot .row>button:not(.main){height:46px}
 #foot .icon{width:46px;height:46px;border-radius:11px}
+#camBtn.live{background:var(--red);border-color:var(--red);color:#fff}
+#camSelf{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#000;transform:scaleX(-1)}
 #ver{font-size:11px;color:#55555c;text-align:center;padding:8px 0 0;margin-top:auto}
 
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px}
@@ -145,7 +147,6 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 #vbar .sp{flex:1}
 #vbar .lbl{color:var(--mute);font-size:12px;margin:0 2px 0 8px}
 #tiles{flex:1;min-height:0;display:grid;gap:6px;padding:0 6px 6px}
-#tiles.focus{grid-template-rows:minmax(0,1fr) minmax(0,18%)}
 .tile{position:relative;background:#0d0d0f;border-radius:8px;overflow:hidden;min-width:0;min-height:0;cursor:pointer;outline:2px solid transparent;outline-offset:-2px}
 .tile:hover{outline-color:#ffffff22}
 .tile video{width:100%;height:100%;object-fit:contain;display:block;background:#000}
@@ -160,7 +161,7 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .tile .vol input{-webkit-appearance:auto;appearance:auto;width:0;padding:0;margin:0;border:0;background:none;accent-color:#fff;opacity:0;cursor:pointer;transition:width .15s,opacity .15s,margin .15s}
 .tile .vol:hover input,.tile .vol input:focus{width:96px;opacity:1;margin:0 8px 0 2px}
 .tile .stats{position:absolute;left:8px;top:8px;right:8px;font-size:11px;color:#fffc;text-shadow:0 0 4px #000;pointer-events:none;font-variant-numeric:tabular-nums}
-#tiles.focus .tile.small .stats{display:none}
+.tile.small .stats{display:none}
 #wempty{flex:1;display:grid;place-items:center;color:var(--mute)}
 #watch.idle{cursor:none}
 #watch.idle #vbar{opacity:0}
@@ -246,6 +247,10 @@ html.max #tb .rz{display:none}
       <button class="ghost" id="openWatch" hidden>Ver as telas que você está assistindo</button>
       <div class="head" style="margin-top:8px"><h2>Na sala</h2></div>
       <div class="list" id="members"></div>
+      <div id="camSelfBox" hidden style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+        <h2>Sua câmera</h2>
+        <video id="camSelf" muted playsinline autoplay></video>
+      </div>
     </div>
   </section>
 
@@ -267,6 +272,9 @@ html.max #tb .rz{display:none}
       <p class="err" id="shareErr"></p>
       <div class="row">
         <button class="main" id="share" disabled>Preparando…</button>
+        <button class="icon" id="camBtn" aria-label="Ligar a câmera" title="Ligar a câmera">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 10l4.55-2.28A1 1 0 0 1 21 8.62v6.76a1 1 0 0 1-1.45.9L15 14"></path><rect x="3" y="6" width="12" height="12" rx="2"></rect></svg>
+        </button>
         <button class="icon" id="openSettings" aria-label="Configurações da transmissão" title="Configurações da transmissão">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg>
         </button>
@@ -287,6 +295,7 @@ html.max #tb .rz{display:none}
       <label>Bitrate (por pessoa)<select id="mbps"></select></label>
       <label>Codec<select id="codec"><option value="h264">H.264</option><option value="av1">AV1</option></select></label>
       <label class="full">Encoder<select id="encoder"><option value="auto">Automático</option></select></label>
+      <label class="full">Câmera<select id="camPick"><option value="">Padrão do Windows</option></select></label>
       <hr>
       <label class="check full"><input type="checkbox" id="audio"> Transmitir o áudio do PC</label>
       <div id="audioOpts" class="full" style="display:grid;gap:8px">
@@ -574,7 +583,12 @@ function renderRoom() {
   $('#noRoom').hidden = !!r; $('#inRoom').hidden = !r;
   if (!r) return;
   const me = S.code, watchers = new Set(S.host.watchers || []);
-  const streams = r.members.filter(m => m.streaming);
+  // cada tela e cada câmera é um item: { m, cam, key } (key = como a sessão de assistir é guardada)
+  const streams = [];
+  for (const m of r.members) {
+    if (m.streaming) streams.push({ m, cam: false, key: m.code });
+    if (m.camera) streams.push({ m, cam: true, key: 'cam:' + m.code });
+  }
   $('#streamsTitle').textContent = `Transmitindo · ${streams.length}`;
   const badge = $('#roomBadge');
   badge.textContent = r.public ? 'pública' : 'particular';
@@ -582,14 +596,14 @@ function renderRoom() {
   badge.title = S.isOwner ? `Clique para tornar ${r.public ? 'particular (só convidados)' : 'pública (amigos entram sem convite)'}` : '';
 
   let sh = '';
-  for (const m of streams) {
-    const isMe = m.code === me;
-    const sub = isMe ? `você · ${watchers.size} assistindo` : (watchers.has(m.code) ? 'assistindo você também' : '');
-    const action = isMe ? '' : sessions.has(m.code)
-      ? `<button class="ghost small" data-act="watch" data-code="${esc(m.code)}">Assistindo</button>`
-      : `<button class="small" data-act="watch" data-code="${esc(m.code)}">Assistir</button>`;
+  for (const { m, cam, key } of streams) {
+    const isMe = m.code === me, n = cam ? camPeers.size : watchers.size;
+    const sub = [cam ? 'câmera' : 'tela', isMe ? `você · ${n} assistindo` : (!cam && watchers.has(m.code) ? 'assistindo você também' : '')].filter(Boolean).join(' · ');
+    const action = isMe ? '' : sessions.has(key)
+      ? `<button class="ghost small" data-act="watch" data-code="${esc(key)}">Assistindo</button>`
+      : `<button class="small" data-act="watch" data-code="${esc(key)}">Assistir</button>`;
     sh += `<div class="item box"><span class="st live"></span><div class="who"><div class="name">${esc(m.name)}</div>
-      <div class="sub">${esc(sub) || 'transmitindo'}</div></div>${action}</div>`;
+      <div class="sub">${esc(sub)}</div></div>${action}</div>`;
   }
   setHTML('#streams', sh || '<p class="muted" style="padding:4px 2px">Ninguém transmitindo ainda.</p>');
   $('#openWatch').hidden = sessions.size === 0 || !$('#watch').hidden;
@@ -609,7 +623,7 @@ function renderRoom() {
     // quem está na sala e ainda não é amigo: dá para adicionar daqui
     const add = isMe || friends.has(m.code) ? '' : pending.has(m.code) ? '<span class="muted">pedido enviado</span>'
       : `<button class="ghost small" data-act="befriend" data-code="${esc(m.code)}">Adicionar</button>`;
-    mh += `<div class="item"><span class="st ${m.streaming ? 'live' : 'on'}"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div></div>
+    mh += `<div class="item"><span class="st ${m.streaming || m.camera ? 'live' : 'on'}"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div></div>
       <span class="muted">${esc(notes.join(' · '))}</span>${add}</div>`;
   }
   setHTML('#members', mh);
@@ -627,6 +641,7 @@ function renderFooter() {
   const h = S.host, live = h.state !== 'idle';
   if (env) { $('#share').disabled = false; $('#share').textContent = live ? 'Parar transmissão' : 'Compartilhar tela'; }
   $('#share').classList.toggle('live', live);
+  renderCam();
   $('#codec').disabled = live;
   $('#leaveRoom').textContent = S.isOwner ? 'Encerrar' : 'Sair';
   let st;
@@ -806,11 +821,13 @@ goWindow('state').then(setMax);
 const setFs = on => { fsOn = on; document.documentElement.classList.toggle('fs', on); };
 
 /* ================= Assistir: várias telas ao mesmo tempo ================= */
-// Uma sessão por pessoa assistida: { code, pc, tile, video, lastBytes, ping, timers }
+// Uma sessão por tela ou câmera assistida: { code, who, cam, pc, tile, video, lastBytes, ping, timers }.
+// code é a chave: o código da pessoa (tela) ou "cam:<código>" (câmera); who é sempre a pessoa.
 const sessions = new Map();
+const whoOf = key => key.replace(/^cam:/, '');
 let focus = null;        // código em destaque (null = grade com todas do mesmo tamanho)
 let fsOn = false, showStats = true;
-const nameOf = code => (S && S.names[code]) || code;
+const nameOf = key => (S && S.names[whoOf(key)]) || whoOf(key);
 
 function showWatch() {
   if ($('#watch').hidden) { $('#watch').hidden = false; goWatchWindow(true); }
@@ -828,33 +845,41 @@ function watchAdd(code) {
   if (!sessions.has(code)) {
     const tile = document.createElement('div');
     tile.className = 'tile';
+    const cam = code.startsWith('cam:'), who = whoOf(code);
     tile.innerHTML = `<video playsinline autoplay></video><div class="msg"></div><div class="stats"></div>
-      <div class="tag"><span></span><span class="vol"><button data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)">🔊</button><input type="range" min="0" max="100" title="Volume"></span><button data-act="close" data-code="${esc(code)}" title="Parar de assistir">✕</button></div>`;
-    tile.querySelector('.tag span').textContent = nameOf(code);
-    const s = { code, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
-    const range = tile.querySelector('.vol input');
-    range.value = Math.round((volumes.get(code) ?? 1) * 100);
-    s.video.volume = range.value / 100;
-    range.oninput = () => {
-      const v = range.value / 100;
-      s.video.volume = v; volumes.set(code, v);
-      if (v > 0 && s.muted) toggleMute(code); else updateVolIcon(s); // mexer no volume tira o mudo
-    };
+      <div class="tag"><span></span>${cam ? '' : `<span class="vol"><button data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)">🔊</button><input type="range" min="0" max="100" title="Volume"></span>`}<button data-act="close" data-code="${esc(code)}" title="Parar de assistir">✕</button></div>`;
+    tile.querySelector('.tag span').textContent = tagOf(code);
+    const s = { code, who, cam, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
+    if (cam) s.video.muted = true; // câmera não tem som
+    else {
+      const range = tile.querySelector('.vol input');
+      range.value = Math.round((volumes.get(code) ?? 1) * 100);
+      s.video.volume = range.value / 100;
+      range.oninput = () => {
+        const v = range.value / 100;
+        s.video.volume = v; volumes.set(code, v);
+        if (v > 0 && s.muted) toggleMute(code); else updateVolIcon(s); // mexer no volume tira o mudo
+      };
+    }
     const own = e => e.target.closest('button, .vol');
     tile.onclick = e => { if (!own(e)) { focus = focus === code ? null : code; layout(); } };
     tile.ondblclick = e => { if (!own(e)) toggleFs(); };
     sessions.set(code, s);
     $('#tiles').appendChild(tile);
     tileMsg(s, `conectando em ${nameOf(code)}…`);
-    const ask = () => { if (sessions.get(code) === s && !s.pc) { goSignal(code, 'watch', '', null); s.timers.push(setTimeout(ask, 6000)); } };
+    const ask = () => { if (sessions.get(code) === s && !s.pc) { askStream(s); s.timers.push(setTimeout(ask, 6000)); } };
     ask();
   }
   showWatch();
 }
 
+const tagOf = key => (key.startsWith('cam:') ? '📷 ' : '') + nameOf(key);
+// pede a tela (ao Go/Pion de quem transmite) ou a câmera (à página de quem mostra)
+const askStream = s => s.cam ? goCamSignal(s.who, 'cam-watch', '') : goSignal(s.who, 'watch', '', null);
+
 function watchRemove(code, silent) {
   const s = sessions.get(code); if (!s) return;
-  goSignal(code, 'unwatch', '', null);
+  if (s.cam) goCamSignal(s.who, 'cam-unwatch', ''); else goSignal(code, 'unwatch', '', null);
   s.timers.forEach(clearTimeout);
   if (s.pc) s.pc.close();
   s.video.srcObject = null; s.tile.remove();
@@ -868,7 +893,7 @@ function tileMsg(s, t) { const m = s.tile.querySelector('.msg'); m.textContent =
 const volumes = new Map(); // volume escolhido para cada pessoa (vale enquanto o app estiver aberto)
 
 function toggleMute(code) {
-  const s = sessions.get(code); if (!s) return;
+  const s = sessions.get(code); if (!s || s.cam) return;
   s.muted = !s.muted; s.video.muted = s.muted;
   if (!s.muted && s.video.volume === 0) { // desmutar com volume zerado: volta para 50%
     s.video.volume = 0.5; volumes.set(code, 0.5); s.tile.querySelector('.vol input').value = 50;
@@ -881,31 +906,43 @@ function updateVolIcon(s) {
   s.tile.querySelector('[data-act=mute]').textContent = v === 0 ? '🔇' : v < 0.5 ? '🔉' : '🔊';
 }
 
-// Grade estilo Discord: todas do mesmo tamanho, ou uma em destaque com as outras embaixo.
+// Grade estilo Discord. Em cima ficam as maiores: a que foi clicada (destaque) ou, sem
+// destaque, as telas; embaixo, uma fileira com o resto (as câmeras, ou as outras quando há
+// destaque). Só telas ou só câmeras, sem destaque: todas do mesmo tamanho.
+// As posições são dadas numa grade de 60 colunas (divide por 1 a 6) para não tirar os
+// vídeos do lugar na página — mover um <video> o faria parar.
 function layout() {
   const tiles = $('#tiles'), list = [...sessions.values()], n = list.length;
   $('#wempty').hidden = n > 0; tiles.hidden = n === 0;
   if (focus && !sessions.has(focus)) focus = null;
   const focused = focus && n > 1;
+  const screens = list.filter(s => !s.cam), cams = list.filter(s => s.cam);
+  const big = focused ? [sessions.get(focus)] : (screens.length && cams.length ? screens : list);
+  const small = list.filter(s => !big.includes(s));
   tiles.classList.toggle('focus', !!focused);
-  for (const s of list) {
-    s.tile.classList.toggle('small', !!focused && s.code !== focus);
-    s.tile.style.gridColumn = focused && s.code === focus ? '1 / -1' : '';
-    s.tile.style.gridRow = focused ? (s.code === focus ? '1' : '2') : '';
+
+  const W = tiles.clientWidth || innerWidth, H = (tiles.clientHeight || innerHeight) * (small.length ? 0.82 : 1);
+  let cols = 1, bestArea = 0; // escolhe o número de colunas que deixa cada tela 16:9 maior
+  for (let c = 1; c <= Math.min(big.length, 6); c++) {
+    const r = Math.ceil(big.length / c), w = W / c, h = H / r, area = Math.min(w, h * 16 / 9) * Math.min(h, w * 9 / 16);
+    if (area > bestArea) { bestArea = area; cols = c; }
   }
-  if (focused) {
-    tiles.style.gridTemplateColumns = `repeat(${n - 1}, minmax(0,1fr))`;
-    tiles.style.gridTemplateRows = '';
-  } else {
-    const W = tiles.clientWidth || innerWidth, H = tiles.clientHeight || innerHeight;
-    let best = 1, bestArea = 0; // escolhe o número de colunas que deixa cada tela 16:9 maior
-    for (let c = 1; c <= n; c++) {
-      const r = Math.ceil(n / c), w = W / c, h = H / r, area = Math.min(w, h * 16 / 9) * Math.min(h, w * 9 / 16);
-      if (area > bestArea) { bestArea = area; best = c; }
-    }
-    tiles.style.gridTemplateColumns = `repeat(${best}, minmax(0,1fr))`;
-    tiles.style.gridTemplateRows = `repeat(${Math.ceil(n / best)}, minmax(0,1fr))`;
-  }
+  const rows = Math.ceil(big.length / cols), span = 60 / cols;
+  tiles.style.gridTemplateColumns = 'repeat(60, minmax(0,1fr))';
+  tiles.style.gridTemplateRows = `repeat(${rows}, minmax(0,1fr))` + (small.length ? ' minmax(0,18%)' : '');
+  big.forEach((s, i) => {
+    const row = Math.floor(i / cols), inRow = Math.min(cols, big.length - row * cols);
+    const start = (cols - inRow) * span / 2 + (i % cols) * span; // última linha incompleta fica centralizada
+    s.tile.classList.remove('small');
+    s.tile.style.gridRow = row + 1;
+    s.tile.style.gridColumn = `${Math.floor(start) + 1} / span ${span}`;
+  });
+  const sw = Math.min(12, Math.floor(60 / Math.max(small.length, 1))), left = Math.floor((60 - sw * small.length) / 2);
+  small.forEach((s, i) => {
+    s.tile.classList.add('small');
+    s.tile.style.gridRow = rows + 1;
+    s.tile.style.gridColumn = `${left + i * sw + 1} / span ${sw}`;
+  });
   $('#vgrid').hidden = !focused;
   renderWatchBar();
 }
@@ -913,33 +950,40 @@ addEventListener('resize', () => { if (!$('#watch').hidden) layout(); });
 
 function renderWatchBar() {
   if (!S || !S.room) return;
-  const streams = S.room.members.filter(m => m.streaming && m.code !== S.code);
-  setHTML('#vtabs', streams.map(m => `<button class="${sessions.has(m.code) ? 'on' : ''}" data-act="toggle" data-code="${esc(m.code)}" title="${sessions.has(m.code) ? 'Parar de assistir' : 'Assistir'}">${esc(m.name)}</button>`).join('')
+  const keys = [];
+  for (const m of S.room.members) if (m.code !== S.code) {
+    if (m.streaming) keys.push(m.code);
+    if (m.camera) keys.push('cam:' + m.code);
+  }
+  setHTML('#vtabs', keys.map(k => `<button class="${sessions.has(k) ? 'on' : ''}" data-act="toggle" data-code="${esc(k)}" title="${sessions.has(k) ? 'Parar de assistir' : 'Assistir'}">${esc(tagOf(k))}</button>`).join('')
     || '<span class="muted">ninguém</span>');
 }
 
 // Mantém as sessões de acordo com a sala: quem parou de transmitir sai da grade.
 function syncWatch() {
-  if (!S.room) { if (sessions.size || !$('#watch').hidden) closeWatch(); return; }
+  if (!S.room) { if (sessions.size || !$('#watch').hidden) closeWatch(); camStop(); return; }
   for (const s of sessions.values()) {
-    s.tile.querySelector('.tag span').textContent = nameOf(s.code);
-    const m = S.room.members.find(x => x.code === s.code);
-    if (!m || !m.streaming) streamEnded(s);
+    s.tile.querySelector('.tag span').textContent = tagOf(s.code);
+    const m = S.room.members.find(x => x.code === s.who);
+    if (!m || !(s.cam ? m.camera : m.streaming)) streamEnded(s);
   }
+  camSync();
   if (!$('#watch').hidden) renderWatchBar();
 }
 
 function streamEnded(s) {
   if (s.ending) return;
   s.ending = true;
-  tileMsg(s, `${nameOf(s.code)} parou de transmitir`);
+  tileMsg(s, `${nameOf(s.code)} ${s.cam ? 'desligou a câmera' : 'parou de transmitir'}`);
   if (s.pc) { s.pc.close(); s.pc = null; }
   s.video.srcObject = null;
   setTimeout(() => { if (sessions.get(s.code) === s) watchRemove(s.code); }, 2500);
 }
 
 window.onSignal = async ev => {
-  if (ev.kind === 'left') { closeWatch(); return; }
+  if (ev.kind === 'left') { closeWatch(); camStop(); return; }
+  if (ev.kind.startsWith('cam-')) { onCamSignal(ev); return; }
+  if (ev.kind === 'gone') { camDrop(ev.src); const c = sessions.get('cam:' + ev.src); if (c) streamEnded(c); }
   const s = sessions.get(ev.src); if (!s) return;
   if (ev.kind === 'bye' || ev.kind === 'gone') { streamEnded(s); return; }
   if (ev.kind === 'cand' && s.pc) { s.pc.addIceCandidate(ev.candidate).catch(() => {}); return; }
@@ -977,6 +1021,171 @@ window.onSignal = async ev => {
   goSignal(s.code, 'answer', pc.localDescription.sdp, null);
 };
 
+/* ================= Câmera ================= */
+// A câmera é capturada aqui na página e enviada pelo WebRTC do próprio WebView2, direto
+// para cada pessoa da sala que pedir para ver (sem som). A tela continua indo pelo
+// FFmpeg/Pion. A sinalização (cam-watch, cam-sdp, cam-ice...) passa pelo Go.
+let camStream = null, camBusy = false, camSince = 0;
+const camPeers = new Map(); // quem está vendo a minha câmera: código → RTCPeerConnection
+const CAM_MAX_BPS = 2500000;
+const camSend = (dst, t, d) => goCamSignal(dst, t, d ? JSON.stringify(d) : '');
+
+async function camOpen() {
+  const video = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+  let st = await navigator.mediaDevices.getUserMedia({ video, audio: false });
+  // a câmera escolhida é guardada pelo nome (os ids mudam a cada abertura do app)
+  const devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.label);
+  const want = cfg && cfg.camera && devs.find(d => d.label === cfg.camera);
+  if (want && st.getVideoTracks()[0].label !== want.label) {
+    st.getTracks().forEach(t => t.stop());
+    st = await navigator.mediaDevices.getUserMedia({ video: { ...video, deviceId: { exact: want.deviceId } }, audio: false });
+  }
+  $('#camPick').innerHTML = '<option value="">Padrão do Windows</option>' + devs.map(d => `<option>${esc(d.label)}</option>`).join('');
+  $('#camPick').value = want ? want.label : '';
+  return st;
+}
+
+function camUse(st) {
+  camStream = st;
+  const track = st.getVideoTracks()[0];
+  track.contentHint = 'motion';
+  track.onended = () => { toast('A câmera foi desconectada.'); camStop(); };
+  $('#camSelf').srcObject = st;
+  return track;
+}
+const camRelease = st => st.getTracks().forEach(t => { t.onended = null; t.stop(); });
+
+async function camStart() {
+  if (camStream || camBusy || !S.room) return;
+  camBusy = true;
+  try {
+    camUse(await camOpen());
+    camSince = Date.now();
+    goSetCamera(true);
+  } catch (e) {
+    camStream = null;
+    toast(e.name === 'NotFoundError' ? 'Nenhuma câmera encontrada neste PC.'
+      : e.name === 'NotReadableError' ? 'A câmera está sendo usada por outro programa.'
+      : e.name === 'NotAllowedError' ? 'O Windows não deixou usar a câmera (Configurações do Windows → Privacidade → Câmera).'
+      : 'Não foi possível ligar a câmera.');
+    goLog('câmera: erro ao ligar: ' + e.name);
+  }
+  camBusy = false;
+  refresh();
+}
+
+function camStop() {
+  if (!camStream) return;
+  for (const code of [...camPeers.keys()]) { camSend(code, 'cam-bye'); camDrop(code); }
+  camRelease(camStream);
+  camStream = null;
+  $('#camSelf').srcObject = null;
+  goSetCamera(false);
+  refresh();
+}
+
+function camDrop(code) { const pc = camPeers.get(code); if (pc) { camPeers.delete(code); pc.close(); } }
+
+// troca de câmera com ela ligada: quem está assistindo continua, só muda a imagem
+async function camSwitch() {
+  if (!camStream || camBusy) return;
+  camBusy = true;
+  camRelease(camStream); // o Windows não abre a mesma câmera duas vezes
+  try {
+    const track = camUse(await camOpen());
+    for (const pc of camPeers.values()) for (const snd of pc.getSenders()) snd.replaceTrack(track);
+    camBusy = false;
+  } catch (e) {
+    camBusy = false; camStop(); toast('Não foi possível trocar de câmera.');
+  }
+}
+
+// alguém pediu para ver a minha câmera: eu ofereço (como na tela, quem mostra define o vídeo)
+async function camOffer(code) {
+  camDrop(code);
+  const pc = new RTCPeerConnection(ICE);
+  camPeers.set(code, pc);
+  const snd = pc.addTrack(camStream.getVideoTracks()[0], camStream);
+  pc.onicecandidate = e => e.candidate && camSend(code, 'cam-ice', { who: S.code, candidate: e.candidate.toJSON() });
+  pc.onconnectionstatechange = () => {
+    if (camPeers.get(code) !== pc) return;
+    if (['connected', 'failed'].includes(pc.connectionState)) goLog(`câmera: espectador ${pc.connectionState}`); // sem nomes no log
+    if (['failed', 'closed'].includes(pc.connectionState)) { camDrop(code); refresh(); }
+  };
+  await pc.setLocalDescription(await pc.createOffer());
+  const prm = snd.getParameters();
+  if (prm.encodings && prm.encodings.length) { prm.encodings[0].maxBitrate = CAM_MAX_BPS; snd.setParameters(prm).catch(() => {}); }
+  camSend(code, 'cam-sdp', { who: S.code, type: 'offer', sdp: pc.localDescription.sdp });
+  refresh();
+}
+
+// a câmera de outra pessoa chegou: respondo e mostro no quadro dela
+async function camAnswer(s, sdp) {
+  s.ending = false;
+  if (s.pc) s.pc.close();
+  const pc = s.pc = new RTCPeerConnection(ICE);
+  pc.ontrack = e => {
+    if ('jitterBufferTarget' in e.receiver) e.receiver.jitterBufferTarget = 0;
+    s.video.srcObject = e.streams[0] || new MediaStream([e.track]);
+    s.video.play().catch(() => {});
+  };
+  pc.onicecandidate = e => e.candidate && camSend(s.who, 'cam-ice', { who: s.who, candidate: e.candidate.toJSON() });
+  pc.onconnectionstatechange = () => {
+    if (s.pc !== pc) return;
+    if (['connected', 'disconnected', 'failed'].includes(pc.connectionState)) goLog(`assistindo câmera: conexão ${pc.connectionState}`);
+    if (pc.connectionState === 'connected') tileMsg(s, s.video.videoWidth ? '' : 'aguardando o primeiro quadro…');
+    if (pc.connectionState === 'failed') {
+      tileMsg(s, 'não foi possível conectar (rede restritiva?) · tentando de novo…');
+      pc.close(); s.pc = null;
+      setTimeout(() => sessions.get(s.code) === s && askStream(s), 2000);
+    }
+  };
+  s.video.onresize = s.video.onplaying = () => { if (s.video.videoWidth) tileMsg(s, ''); };
+  await pc.setRemoteDescription({ type: 'offer', sdp });
+  await pc.setLocalDescription(await pc.createAnswer());
+  camSend(s.who, 'cam-sdp', { who: s.who, type: 'answer', sdp: pc.localDescription.sdp });
+}
+
+// d.who diz de quem é a câmera da mensagem (duas pessoas podem ver uma à outra)
+function onCamSignal(ev) {
+  const src = ev.src, d = ev.d || {}, mine = d.who === S.code;
+  const s = sessions.get('cam:' + src);
+  switch (ev.kind) {
+    case 'cam-watch': if (camStream) camOffer(src).catch(() => camDrop(src)); else camSend(src, 'cam-bye'); break;
+    case 'cam-unwatch': camDrop(src); refresh(); break;
+    case 'cam-bye': if (s) streamEnded(s); break;
+    case 'cam-sdp':
+      if (d.type === 'answer' && mine) camPeers.get(src)?.setRemoteDescription({ type: 'answer', sdp: d.sdp }).catch(() => camDrop(src));
+      else if (d.type === 'offer' && d.who === src && s) camAnswer(s, d.sdp).catch(() => {});
+      break;
+    case 'cam-ice': {
+      const pc = mine ? camPeers.get(src) : d.who === src && s ? s.pc : null;
+      if (pc && d.candidate) pc.addIceCandidate(d.candidate).catch(() => {});
+      break;
+    }
+  }
+}
+
+// mantém a câmera de acordo com a sala: quem saiu deixa de receber
+function camSync() {
+  if (!camStream) return;
+  for (const code of [...camPeers.keys()]) if (!S.room.members.some(m => m.code === code)) camDrop(code);
+  // dono da sala numa versão antiga não repassa "câmera ligada": ninguém conseguiria ver
+  const me = S.room.members.find(m => m.code === S.code);
+  if (me && !me.camera && Date.now() - camSince > 8000) {
+    camStop(); toast('Para usar a câmera, o dono da sala precisa atualizar o familiashare.', 9000, true);
+  }
+}
+
+function renderCam() {
+  const on = !!camStream, b = $('#camBtn');
+  b.classList.toggle('live', on); b.disabled = camBusy;
+  b.title = on ? 'Desligar a câmera' : 'Ligar a câmera'; b.setAttribute('aria-label', b.title);
+  $('#camSelfBox').hidden = !on;
+}
+$('#camBtn').onclick = () => camStream ? camStop() : camStart();
+$('#camPick').onchange = () => { cfg.camera = $('#camPick').value; goSetCameraDevice(cfg.camera); camSwitch(); };
+
 setInterval(async () => {
   for (const s of sessions.values()) {
     const el = s.tile.querySelector('.stats');
@@ -1007,7 +1216,7 @@ $('#vback').onclick = () => { if (fsOn) toggleFs(); $('#watch').hidden = true; g
 addEventListener('keydown', e => {
   if ($('#watch').hidden || e.target.matches('input')) return;
   if (e.key === 'f' || e.key === 'F' || e.key === 'F11') { e.preventDefault(); toggleFs(); }
-  else if (e.key === 'm' || e.key === 'M') { const anyOn = [...sessions.values()].some(s => !s.muted); for (const s of sessions.values()) if (s.muted === !anyOn) toggleMute(s.code); }
+  else if (e.key === 'm' || e.key === 'M') { const scr = [...sessions.values()].filter(s => !s.cam), anyOn = scr.some(s => !s.muted); for (const s of scr) if (s.muted === !anyOn) toggleMute(s.code); }
   else if (e.key === 'i' || e.key === 'I') showStats = !showStats;
   else if (e.key === 'Escape') { if (fsOn) toggleFs(); else $('#vback').click(); }
 });

@@ -37,6 +37,7 @@ type Config struct {
 	Encoder string   `json:"encoder"`
 	Audio   bool     `json:"audio"`
 	Exclude []string `json:"exclude"`
+	Camera  string   `json:"camera"` // câmera escolhida ("" = a padrão do Windows)
 }
 
 // Version é a versão atual do formato. Ao subir, adicione a migração em Normalize.

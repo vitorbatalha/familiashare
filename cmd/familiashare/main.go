@@ -96,7 +96,9 @@ func main() {
 	go http.Serve(ln, http.FileServer(http.FS(fs.FS(ui.Files))))
 
 	// o som de quem assiste começa sem precisar clicar em "ativar som"
-	os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required")
+	// e a câmera liga sem o navegador perguntar a cada abertura (a página é do próprio
+	// app, numa porta local que muda toda vez, então o "lembrar" dele não serviria)
+	os.Setenv("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "--autoplay-policy=no-user-gesture-required --use-fake-ui-for-media-stream")
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		Debug:     os.Getenv("FAMILIASHARE_DEBUG") != "",
 		AutoFocus: true,

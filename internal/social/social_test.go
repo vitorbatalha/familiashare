@@ -111,15 +111,42 @@ type person struct {
 	*Service
 	code string
 	host *fakeHost
+	ui   *uiEvents
+}
+
+// uiEvents guarda o que o Service mandou para a página (toUI).
+type uiEvents struct {
+	mu   sync.Mutex
+	list []map[string]any
+}
+
+func (u *uiEvents) add(ev map[string]any) {
+	u.mu.Lock()
+	u.list = append(u.list, ev)
+	u.mu.Unlock()
+}
+
+// count conta os eventos de um tipo vindos de src.
+func (u *uiEvents) count(kind, src string) int {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	n := 0
+	for _, ev := range u.list {
+		if ev["kind"] == kind && ev["src"] == src {
+			n++
+		}
+	}
+	return n
 }
 
 func join(b *bus, name, code string) *person {
 	cfg := config.Config{Name: name, MyCode: code}
 	cfg.Normalize()
 	h := &fakeHost{}
-	svc := New(cfg, func(config.Config) {}, h, func(map[string]any) {})
+	ui := &uiEvents{}
+	svc := New(cfg, func(config.Config) {}, h, ui.add)
 	svc.Run(b.connect(code, svc))
-	return &person{svc, code, h}
+	return &person{svc, code, h, ui}
 }
 
 // eventually espera a condição ficar verdadeira (as mensagens são assíncronas).
@@ -292,6 +319,45 @@ func TestAskToJoinCancelled(t *testing.T) {
 	eventually(t, "o pedido some para a Ana", func() bool { return len(ana.State().Asks) == 0 })
 	if caio.State().Joining != "" {
 		t.Error("Caio não deveria continuar pedindo")
+	}
+}
+
+func TestCameraFlagAndSignaling(t *testing.T) {
+	b := newBus()
+	ana, beto, caio := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2"), join(b, "Caio", "caioooo3")
+	befriend(t, ana, beto)
+	befriend(t, ana, caio)
+	ana.CreateRoom(true)
+	beto.Join(ana.code)
+	eventually(t, "Beto entra", func() bool { return roomMembers(beto) == 2 })
+	camOf := func(p *person, code string) bool {
+		if r := p.State().Room; r != nil {
+			if m := r.member(code); m != nil {
+				return m.Camera
+			}
+		}
+		return false
+	}
+
+	beto.SetCamera(true) // membro avisa o dono, que repassa à sala
+	eventually(t, "a sala vê a câmera do Beto", func() bool { return camOf(ana, beto.code) && camOf(beto, beto.code) })
+	ana.SetCamera(true) // dono
+	eventually(t, "a sala vê a câmera da Ana", func() bool { return camOf(beto, ana.code) })
+	beto.SetCamera(false)
+	eventually(t, "câmera do Beto desligada", func() bool { return !camOf(ana, beto.code) })
+
+	// a sinalização da câmera só passa entre quem está na mesma sala
+	ana.CamSignal(beto.code, "cam-watch", nil)
+	eventually(t, "Beto recebe o pedido da Ana", func() bool { return beto.ui.count("cam-watch", ana.code) == 1 })
+	beto.CamSignal(ana.code, "cam-sdp", json.RawMessage(`{"who":"betoooo2","type":"offer","sdp":"x"}`))
+	eventually(t, "Ana recebe a oferta", func() bool { return ana.ui.count("cam-sdp", beto.code) == 1 })
+	caio.CamSignal(ana.code, "cam-watch", nil) // Caio não está em sala nenhuma: nem envia
+	caio.net.Send(ana.code, "cam-watch", nil)  // e mesmo forçando, a Ana ignora
+	ana.CamSignal(caio.code, "cam-watch", nil)
+	ana.CamSignal(beto.code, "ping", nil) // só mensagens da câmera
+	time.Sleep(100 * time.Millisecond)
+	if ana.ui.count("cam-watch", caio.code) != 0 || caio.ui.count("cam-watch", ana.code) != 0 {
+		t.Error("quem não está na sala não pode pedir nem receber câmera")
 	}
 }
 
