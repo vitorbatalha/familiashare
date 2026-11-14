@@ -23,7 +23,8 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/winapi"
 )
 
-func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *winapi.Frame, dataDir string) {
+// notify mostra uma notificação do Windows (para avisos com a janela em segundo plano).
+func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *winapi.Frame, notify func(title, text string), dataDir string) {
 	hwnd := uintptr(w.Window())
 
 	// preferências do app
@@ -44,6 +45,9 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *w
 	w.Bind("goInvite", func(code string) { go svc.Invite(code) })
 	w.Bind("goDeclineInvite", func(owner string) { svc.DeclineInvite(owner) })
 	w.Bind("goJoin", func(owner string) { go svc.Join(owner) })
+	w.Bind("goCancelJoin", func() { go svc.CancelJoin() })
+	w.Bind("goAnswerAsk", func(code string, accept bool) { go svc.AnswerAsk(code, accept) })
+	w.Bind("goNotify", func(title, text string) { notify(title, text) })
 	w.Bind("goLeave", func() { go svc.Leave() })
 
 	// transmissão

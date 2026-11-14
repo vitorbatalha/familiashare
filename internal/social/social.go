@@ -31,6 +31,8 @@ const (
 	roomEvery     = 10 * time.Second
 	roomTimeout   = 35 * time.Second
 	joinTimeout   = 12 * time.Second
+	askTimeout    = 2 * time.Minute // esperando o dono aceitar um pedido para entrar
+	maxAsks       = 10
 )
 
 // Net é o que o Service precisa da sinalização (na prática, *signaling.Node).
@@ -68,12 +70,14 @@ type Member struct {
 }
 
 type Room struct {
-	Owner     string          `json:"owner"`
-	OwnerName string          `json:"ownerName"`
-	Public    bool            `json:"public"`
-	Members   []Member        `json:"members"`
-	invited   map[string]bool // só o dono usa
-	lastHeard time.Time       // só membros usam (último "room" do dono)
+	Owner     string            `json:"owner"`
+	OwnerName string            `json:"ownerName"`
+	Public    bool              `json:"public"`
+	Members   []Member          `json:"members"`
+	invited   map[string]bool   // só o dono usa
+	asks      map[string]string // só o dono usa: quem pediu para entrar (código → nome)
+	refused   map[string]bool   // só o dono usa: pedidos recusados nesta sala
+	lastHeard time.Time         // só membros usam (último "room" do dono)
 }
 
 func (r *Room) member(code string) *Member {
@@ -101,6 +105,7 @@ type Service struct {
 	room     *Room
 	joining  string
 	joinAt   time.Time
+	asking   bool // o dono recebeu o pedido e ainda não respondeu (join-wait)
 	notices  []string
 }
 
@@ -150,6 +155,11 @@ func (a *Service) friendName(code string) string {
 			return m.Name
 		}
 	}
+	for _, r := range a.friendAt { // dono (não amigo) da sala em que um amigo está
+		if r != nil && r.Owner == code && r.OwnerName != "" {
+			return r.OwnerName
+		}
+	}
 	return code
 }
 
@@ -166,9 +176,14 @@ func (a *Service) tick() {
 	for range time.Tick(time.Second) {
 		a.mu.Lock()
 		now := time.Now()
-		if a.joining != "" && now.Sub(a.joinAt) > joinTimeout {
+		if a.joining != "" && !a.asking && now.Sub(a.joinAt) > joinTimeout {
 			a.notice("Não foi possível entrar na sala de " + a.friendName(a.joining) + ".")
 			a.joining = ""
+		}
+		if a.joining != "" && a.asking && now.Sub(a.joinAt) > askTimeout {
+			a.notice(a.friendName(a.joining) + " não respondeu ao seu pedido para entrar.")
+			go a.net.Send(a.joining, "leave", nil)
+			a.joining, a.asking = "", false
 		}
 		owner := a.room != nil && a.room.Owner == a.cfg.MyCode
 		if a.room != nil && !owner && now.Sub(a.room.lastHeard) > roomTimeout {
@@ -237,6 +252,7 @@ func (a *Service) OnMessage(m signaling.Message) {
 		if a.room != nil {
 			if a.room.Owner == a.cfg.MyCode {
 				removeMember = a.room.member(src) != nil
+				delete(a.room.asks, src)
 			} else {
 				leaveRoom = a.room.Owner == src
 			}
@@ -359,24 +375,48 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 		}
 		if r.member(src) == nil {
 			if !(r.invited[src] || (r.Public && a.isFriend(src))) {
-				reply = a.sendLater(src, "join-no", map[string]string{"reason": "Essa sala é particular: peça um convite."})
+				// Sala pública e quem pede não é amigo do dono (ex.: amigo de um membro):
+				// o dono decide. Um pedido por pessoa; recusado não pede de novo.
+				_, asked := r.asks[src]
+				if r.Public && !r.refused[src] && (asked || len(r.asks) < maxAsks) {
+					if !asked {
+						a.notice(h.Name + " quer entrar na sua sala.")
+					}
+					r.asks[src] = h.Name
+					reply = a.sendLater(src, "join-wait", nil)
+					break
+				}
+				reason := "Essa sala é particular: peça um convite."
+				if r.Public {
+					reason = "Não foi possível entrar nessa sala."
+				}
+				reply = a.sendLater(src, "join-no", map[string]string{"reason": reason})
 				break
 			}
 			r.Members = append(r.Members, Member{Code: src, Name: h.Name})
 			delete(r.invited, src)
+			delete(r.asks, src)
 		}
 		broadcast = true
+	case "join-wait":
+		if a.joining == src && !a.asking {
+			a.asking, a.joinAt = true, time.Now()
+		}
 	case "join-no":
 		if a.joining == src {
 			var x struct{ Reason string }
 			json.Unmarshal(d, &x)
 			a.notice(x.Reason)
-			a.joining = ""
+			a.joining, a.asking = "", false
 		}
 	case "room":
 		var r Room
 		json.Unmarshal(d, &r)
 		if r.Owner != src || (a.joining != src && (a.room == nil || a.room.Owner != src)) {
+			if r.Owner == src && r.member(a.cfg.MyCode) != nil {
+				// o dono aceitou um pedido de que já desisti: aviso para ele me tirar
+				reply = a.sendLater(src, "leave", nil)
+			}
 			break // não pedi para entrar nessa sala
 		}
 		if r.member(a.cfg.MyCode) == nil {
@@ -388,7 +428,7 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 		}
 		if a.joining == src {
 			delete(a.invites, src)
-			a.joining = ""
+			a.joining, a.asking = "", false
 		}
 		r.lastHeard = time.Now()
 		a.room = &r
@@ -398,9 +438,12 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 		}
 		go a.host.KeepOnly(allowed)
 	case "leave":
-		if a.room != nil && a.room.Owner == a.cfg.MyCode && a.room.member(src) != nil {
-			a.removeMemberLocked(src)
-			broadcast = true
+		if a.room != nil && a.room.Owner == a.cfg.MyCode {
+			delete(a.room.asks, src) // desistiu do pedido para entrar
+			if a.room.member(src) != nil {
+				a.removeMemberLocked(src)
+				broadcast = true
+			}
 		}
 	case "closed":
 		if a.room != nil && a.room.Owner == src {
@@ -578,7 +621,8 @@ func (a *Service) CreateRoom(public bool) {
 	a.cfg.RoomPublic = public
 	a.persist()
 	a.room = &Room{Owner: a.cfg.MyCode, OwnerName: a.cfg.Name, Public: public,
-		Members: []Member{{Code: a.cfg.MyCode, Name: a.cfg.Name}}, invited: map[string]bool{}}
+		Members: []Member{{Code: a.cfg.MyCode, Name: a.cfg.Name}},
+		invited: map[string]bool{}, asks: map[string]string{}, refused: map[string]bool{}}
 	a.mu.Unlock()
 	a.pingAll()
 }
@@ -630,10 +674,51 @@ func (a *Service) Join(owner string) {
 		}
 		a.leaveLocked(true)
 	}
-	a.joining, a.joinAt = owner, time.Now()
+	a.joining, a.joinAt, a.asking = owner, time.Now(), false
 	name := a.cfg.Name
 	a.mu.Unlock()
 	a.net.Send(owner, "join", hello{Name: name})
+}
+
+// CancelJoin desiste de entrar (ex.: o dono ainda não respondeu ao pedido).
+func (a *Service) CancelJoin() {
+	a.mu.Lock()
+	owner := a.joining
+	a.joining, a.asking = "", false
+	a.mu.Unlock()
+	if owner != "" {
+		a.net.Send(owner, "leave", nil)
+	}
+}
+
+// AnswerAsk aceita ou recusa, como dono, um pedido para entrar na sala.
+func (a *Service) AnswerAsk(code string, accept bool) {
+	a.mu.Lock()
+	r := a.room
+	if r == nil || r.Owner != a.cfg.MyCode {
+		a.mu.Unlock()
+		return
+	}
+	name, ok := r.asks[code]
+	if !ok {
+		a.mu.Unlock()
+		return
+	}
+	delete(r.asks, code)
+	if accept {
+		if r.member(code) == nil {
+			r.Members = append(r.Members, Member{Code: code, Name: name})
+		}
+	} else {
+		r.refused[code] = true
+	}
+	me := a.cfg.Name
+	a.mu.Unlock()
+	if accept {
+		a.broadcastRoom()
+	} else {
+		a.net.Send(code, "join-no", map[string]string{"reason": me + " recusou seu pedido para entrar."})
+	}
 }
 
 // Leave sai da sala (o dono, ao sair, encerra a sala).
@@ -791,6 +876,8 @@ type State struct {
 	IsOwner  bool              `json:"isOwner"`
 	Invited  []string          `json:"invited"`
 	Joining  string            `json:"joining"`
+	Asking   bool              `json:"asking"` // pedido para entrar aguardando o dono
+	Asks     []config.Friend   `json:"asks"`   // (dono) quem pediu para entrar
 	Host     stream.Stats      `json:"host"`
 	Notices  []string          `json:"notices"`
 	Names    map[string]string `json:"names"`
@@ -805,7 +892,8 @@ func (a *Service) State() State {
 	// listas sempre como [] (nunca null) para a interface
 	s := State{Name: a.cfg.Name, Code: a.cfg.MyCode, Pending: append([]string{}, a.cfg.Pending...),
 		Joining: a.joining, Host: hostStats, Notices: a.notices, Names: map[string]string{}, Config: a.cfg,
-		Friends: []friendView{}, Requests: []config.Friend{}, Invites: []config.Friend{}, Invited: []string{}}
+		Friends: []friendView{}, Requests: []config.Friend{}, Invites: []config.Friend{}, Invited: []string{},
+		Asking: a.asking, Asks: []config.Friend{}}
 	if a.net != nil {
 		s.Net = a.net.Status()
 	}
@@ -836,6 +924,9 @@ func (a *Service) State() State {
 		s.IsOwner = r.Owner == a.cfg.MyCode
 		for code := range a.room.invited {
 			s.Invited = append(s.Invited, code)
+		}
+		for code, name := range a.room.asks {
+			s.Asks = append(s.Asks, config.Friend{Code: code, Name: name})
 		}
 		for _, m := range r.Members {
 			s.Names[m.Code] = m.Name

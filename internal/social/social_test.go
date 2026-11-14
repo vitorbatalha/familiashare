@@ -241,6 +241,60 @@ func TestPrivateRoomHiddenFromFriends(t *testing.T) {
 	}
 }
 
+// Caio é amigo do Beto, que está na sala pública da Ana; Caio não é amigo da Ana.
+func askSetup(t *testing.T) (ana, beto, caio *person) {
+	t.Helper()
+	b := newBus()
+	ana, beto, caio = join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2"), join(b, "Caio", "caioooo3")
+	befriend(t, ana, beto)
+	befriend(t, beto, caio)
+	ana.CreateRoom(true)
+	beto.Join(ana.code)
+	eventually(t, "Beto entra na sala da Ana", func() bool { return roomMembers(beto) == 2 })
+	caio.Join(ana.code)
+	eventually(t, "Ana recebe o pedido do Caio", func() bool { return len(ana.State().Asks) == 1 })
+	eventually(t, "Caio fica aguardando", func() bool { return caio.State().Asking })
+	if roomMembers(caio) != 0 || roomMembers(ana) != 2 {
+		t.Fatal("pedir para entrar não pode colocar na sala antes de o dono aceitar")
+	}
+	return
+}
+
+func TestAskToJoinAccepted(t *testing.T) {
+	ana, _, caio := askSetup(t)
+	if a := ana.State().Asks[0]; a.Code != caio.code || a.Name != "Caio" {
+		t.Errorf("pedido errado: %+v", a)
+	}
+	ana.AnswerAsk(caio.code, true)
+	eventually(t, "Caio entra depois de aceito", func() bool { return roomMembers(caio) == 3 && roomMembers(ana) == 3 })
+	if s := caio.State(); s.Asking || s.Joining != "" || len(ana.State().Asks) != 0 {
+		t.Error("o pedido deveria ter sido concluído")
+	}
+}
+
+func TestAskToJoinRefused(t *testing.T) {
+	ana, _, caio := askSetup(t)
+	ana.AnswerAsk(caio.code, false)
+	eventually(t, "Caio é avisado da recusa", func() bool {
+		s := caio.State()
+		return !s.Asking && s.Joining == ""
+	})
+	caio.Join(ana.code) // recusado não pede de novo nesta sala
+	eventually(t, "segundo pedido é recusado direto", func() bool { return caio.State().Joining == "" })
+	if len(ana.State().Asks) != 0 || roomMembers(caio) != 0 {
+		t.Error("pedido recusado não pode voltar a aparecer")
+	}
+}
+
+func TestAskToJoinCancelled(t *testing.T) {
+	ana, _, caio := askSetup(t)
+	caio.CancelJoin()
+	eventually(t, "o pedido some para a Ana", func() bool { return len(ana.State().Asks) == 0 })
+	if caio.State().Joining != "" {
+		t.Error("Caio não deveria continuar pedindo")
+	}
+}
+
 func TestOwnerLeavingClosesRoom(t *testing.T) {
 	b := newBus()
 	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")

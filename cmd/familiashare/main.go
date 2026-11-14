@@ -146,7 +146,7 @@ func main() {
 		w.Terminate)
 	tray.OnActivate = upd.CheckSoon // janela de volta: vê se saiu versão nova
 
-	bind(w, svc, upd, frame, dataDir)
+	bind(w, svc, upd, frame, tray.Notify, dataDir)
 	w.Navigate("http://" + ln.Addr().String() + "/")
 	w.Run()
 	tray.Remove()
