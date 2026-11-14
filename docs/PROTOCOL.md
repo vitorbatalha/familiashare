@@ -79,14 +79,17 @@ A sala é coordenada pelo **dono**: ele mantém a lista de membros e a envia a t
 | `t` | `d` | De → para | Significado |
 |---|---|---|---|
 | `invite` / `uninvite` | hello | dono → amigo | Convite para a sala (ou cancelamento). |
-| `join` | hello | membro → dono | Pedido para entrar. Aceito se convidado, ou se a sala é pública e quem pede é amigo do dono. |
-| `join-no` | `{ "reason": string }` | dono → membro | Pedido recusado. Sem resposta em **12 s**, o app desiste. |
+| `join` | hello | membro → dono | Pedido para entrar. Aceito se convidado, ou se a sala é pública e quem pede é amigo do dono. Sala pública e quem pede **não** é amigo do dono (desde a 0.4.0): o dono guarda o pedido, responde `join-wait` e decide (Aceitar → `room`; Recusar → `join-no`). Até **10** pedidos guardados; quem foi recusado não pode pedir de novo naquela sala. |
+| `join-wait` | — | dono → membro | (0.4.0) O pedido foi para o dono decidir. Quem pediu passa a esperar até **2 min**; se desistir antes, manda `leave`. Se chegar `room` depois de ter desistido, responde `leave`. |
+| `join-no` | `{ "reason": string }` | dono → membro | Pedido recusado. Sem resposta em **12 s**, o app desiste. Dono em versão anterior à 0.4.0 recusa direto quem não é amigo. |
 | `room` | Room | dono → membros | Estado completo da sala. Enviado a cada mudança e a cada **10 s**; um membro que fica **35 s** sem receber considera a sala encerrada. Se o membro não está na lista, saiu/foi removido. |
 | `leave` | — | membro → dono | Saiu da sala. |
 | `closed` | — | dono → membros | O dono fechou a sala (ou saiu dela). |
 | `share` | `{ "on": bool }` | membro → dono | Começou/parou de transmitir. |
+| `cam` | `{ "on": bool }` | membro → dono | (0.4.0) Ligou/desligou a câmera. Dono em versão antiga ignora; o app desliga a câmera se, depois de **8 s**, a sala não mostrar `camera` para ele. |
 
-`Room` = `{ "owner", "ownerName", "public", "members": [{ "code", "name", "streaming" }] }`.
+`Room` = `{ "owner", "ownerName", "public", "members": [{ "code", "name", "streaming", "camera"? }] }`
+(`camera` desde a 0.4.0, omitido quando falso).
 
 ### Transmissão
 
@@ -115,3 +118,22 @@ sequenceDiagram
 A resposta (`ANSWER`) e os candidatos ICE (`CANDIDATE`) usam os tipos próprios do PeerJS.
 Quem transmite **oferece** (é ele quem define codecs e bitrate); quem assiste responde
 pelo WebRTC do próprio WebView2.
+
+### Câmera (0.4.0)
+
+A câmera não passa pelo Go/Pion: a página de quem mostra captura (`getUserMedia`, sem som,
+1280×720 a até 30 fps, até 2,5 Mbps) e cria uma `RTCPeerConnection` do WebView2 para cada
+espectador. O Go só repassa a sinalização como mensagens de controle, e **só entre membros
+da mesma sala** (as outras são descartadas).
+
+| `t` | `d` | De → para | Significado |
+|---|---|---|---|
+| `cam-watch` | — | espectador → dono da câmera | Quero ver a câmera. Se ela está desligada, responde `cam-bye`. |
+| `cam-unwatch` | — | espectador → dono da câmera | Parei de ver. |
+| `cam-bye` | — | dono da câmera → espectador | A câmera foi desligada. |
+| `cam-sdp` | `{ "who", "type": "offer"\|"answer", "sdp" }` | os dois sentidos | Oferta (de quem mostra) e resposta. |
+| `cam-ice` | `{ "who", "candidate" }` | os dois sentidos | Candidato ICE. |
+
+`who` é o código de quem é a câmera da conversa (duas pessoas podem ver a câmera uma da
+outra ao mesmo tempo). Quem mostra a câmera **oferece**, como na tela; ao receber a
+resposta, acrescenta `x-google-start-bitrate` para o vídeo já começar em 720p.

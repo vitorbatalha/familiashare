@@ -76,6 +76,16 @@ GPUs, depois Media Foundation e por fim x264/CPU — e o app usa o primeiro que 
 produzir quadros. O bitrate "auto" é `largura × altura × fps × 0,2` (×0,75 em AV1), entre
 8 e 60 Mbps.
 
+## Câmera
+
+A câmera (0.4.0) **não** usa o caminho acima: a página captura com `getUserMedia` e envia
+pelo WebRTC do próprio WebView2, uma conexão por espectador (sem som, 720p, até 2,5 Mbps).
+Assim não há um segundo FFmpeg/encoder e a transmissão de tela fica igual. O Go só repassa
+a sinalização (`cam-*`, ver [PROTOCOL.md](PROTOCOL.md)) entre membros da mesma sala e guarda
+a câmera escolhida (pelo nome; os ids mudam a cada abertura). A permissão é dada sem
+perguntar (`--use-fake-ui-for-media-stream`), porque a porta local muda a cada abertura e o
+"lembrar" do navegador não serviria.
+
 ## Áudio sem um app (ex.: Discord)
 
 O Windows permite capturar o áudio **de uma árvore de processos** (incluindo ou
@@ -129,3 +139,7 @@ Coisas que custaram caro para descobrir; leia antes de mexer nessas partes.
 - **PeerJS** derruba quem foge do formato dele ([PROTOCOL.md](PROTOCOL.md)).
 - **Áudio no WebView2** começa mudo sem `--autoplay-policy=no-user-gesture-required`, e
   ao reanexar uma track o elemento `<video>` volta a ficar mudo.
+- **Câmera começando borrada.** O WebRTC do navegador começa em ~300 kbps e reduz a
+  resolução até a banda subir. Quem mostra a câmera acrescenta `x-google-start-bitrate` na
+  resposta recebida e usa `degradationPreference: maintain-resolution`: a imagem já abre em
+  720p.
