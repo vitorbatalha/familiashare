@@ -47,7 +47,8 @@ h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;let
 #foot .row>button:not(.main){height:46px}
 #foot .icon{width:46px;height:46px;border-radius:11px}
 #camBtn.live{background:var(--red);border-color:var(--red);color:#fff}
-#camSelf{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#000;transform:scaleX(-1)}
+#camSelf{width:160px;aspect-ratio:16/9;object-fit:cover;border-radius:9px;border:1px solid var(--line);background:#000;transform:scaleX(-1);cursor:zoom-in;transition:width .15s}
+#camSelf.big{width:100%;cursor:zoom-out}
 #ver{font-size:11px;color:#55555c;text-align:center;padding:8px 0 0;margin-top:auto}
 
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px}
@@ -249,7 +250,7 @@ html.max #tb .rz{display:none}
       <div class="list" id="members"></div>
       <div id="camSelfBox" hidden style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
         <h2>Sua câmera</h2>
-        <video id="camSelf" muted playsinline autoplay></video>
+        <video id="camSelf" muted playsinline autoplay title="Clique para aumentar"></video>
       </div>
     </div>
   </section>
@@ -1105,7 +1106,10 @@ async function camOffer(code) {
   camDrop(code);
   const pc = new RTCPeerConnection(ICE);
   camPeers.set(code, pc);
-  const snd = pc.addTrack(camStream.getVideoTracks()[0], camStream);
+  // já nasce com o limite de bitrate e sem baixar a resolução para "economizar"
+  const snd = pc.addTransceiver(camStream.getVideoTracks()[0], {
+    direction: 'sendonly', streams: [camStream], sendEncodings: [{ maxBitrate: CAM_MAX_BPS }],
+  }).sender;
   pc.onicecandidate = e => e.candidate && camSend(code, 'cam-ice', { who: S.code, candidate: e.candidate.toJSON() });
   pc.onconnectionstatechange = () => {
     if (camPeers.get(code) !== pc) return;
@@ -1114,9 +1118,26 @@ async function camOffer(code) {
   };
   await pc.setLocalDescription(await pc.createOffer());
   const prm = snd.getParameters();
-  if (prm.encodings && prm.encodings.length) { prm.encodings[0].maxBitrate = CAM_MAX_BPS; snd.setParameters(prm).catch(() => {}); }
+  prm.degradationPreference = 'maintain-resolution';
+  if (prm.encodings && prm.encodings.length) prm.encodings[0].maxBitrate = CAM_MAX_BPS;
+  snd.setParameters(prm).catch(() => {});
   camSend(code, 'cam-sdp', { who: S.code, type: 'offer', sdp: pc.localDescription.sdp });
   refresh();
+}
+
+// O WebRTC começa a câmera em ~300 kbps e vai subindo aos poucos (por isso ela abria
+// borrada e pequena). Dizer ao encoder que já pode começar perto do máximo faz a imagem
+// abrir em 720p; se a rede não aguentar, o controle de banda dele baixa sozinho.
+function camFastStart(sdp) {
+  const start = Math.round(CAM_MAX_BPS * 0.8 / 1000), lines = sdp.split('\r\n');
+  const pts = lines.map(l => l.match(/^a=rtpmap:(\d+) (VP8|VP9|H264|AV1)\//i)).filter(Boolean).map(m => m[1]);
+  for (const pt of pts) {
+    const extra = `x-google-start-bitrate=${start}`;
+    const i = lines.findIndex(l => l.startsWith(`a=fmtp:${pt} `));
+    if (i >= 0) lines[i] += ';' + extra;
+    else lines.splice(lines.findIndex(l => l.startsWith(`a=rtpmap:${pt} `)) + 1, 0, `a=fmtp:${pt} ${extra}`);
+  }
+  return lines.join('\r\n');
 }
 
 // a câmera de outra pessoa chegou: respondo e mostro no quadro dela
@@ -1155,7 +1176,7 @@ function onCamSignal(ev) {
     case 'cam-unwatch': camDrop(src); refresh(); break;
     case 'cam-bye': if (s) streamEnded(s); break;
     case 'cam-sdp':
-      if (d.type === 'answer' && mine) camPeers.get(src)?.setRemoteDescription({ type: 'answer', sdp: d.sdp }).catch(() => camDrop(src));
+      if (d.type === 'answer' && mine) camPeers.get(src)?.setRemoteDescription({ type: 'answer', sdp: camFastStart(d.sdp) }).catch(() => camDrop(src));
       else if (d.type === 'offer' && d.who === src && s) camAnswer(s, d.sdp).catch(() => {});
       break;
     case 'cam-ice': {
@@ -1184,6 +1205,10 @@ function renderCam() {
   $('#camSelfBox').hidden = !on;
 }
 $('#camBtn').onclick = () => camStream ? camStop() : camStart();
+$('#camSelf').onclick = () => {
+  const big = $('#camSelf').classList.toggle('big');
+  $('#camSelf').title = big ? 'Clique para diminuir' : 'Clique para aumentar';
+};
 $('#camPick').onchange = () => { cfg.camera = $('#camPick').value; goSetCameraDevice(cfg.camera); camSwitch(); };
 
 setInterval(async () => {
