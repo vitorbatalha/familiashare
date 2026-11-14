@@ -8,6 +8,12 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.5.0] — 2026-11-14
+
+### Alterado
+- Layout das salas totalmente redesenhado. À esquerda ficam as pessoas da sala e os
+  botões; à direita, todas as telas e câmeras ao mesmo tempo, inclusive a sua.
+
 ## [0.4.0] — 2026-11-14
 
 ### Adicionado
