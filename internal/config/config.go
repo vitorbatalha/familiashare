@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -27,6 +28,7 @@ type Config struct {
 	OnClose       string `json:"onClose"`       // botão de fechar: tray | minimize | quit
 	TrayHintSeen  bool   `json:"trayHintSeen"`  // já avisou que o app continua perto do relógio
 	ShareHintSeen bool   `json:"shareHintSeen"` // já deu a dica de silenciar apps (eco) ao transmitir
+	Theme         string `json:"theme"`         // cores do app (ver Themes)
 
 	// transmissão
 	Monitor int      `json:"monitor"` // índice em capture.ListMonitors()
@@ -39,6 +41,10 @@ type Config struct {
 	Exclude []string `json:"exclude"`
 	Camera  string   `json:"camera"` // câmera escolhida ("" = a padrão do Windows)
 }
+
+// Themes são os temas de cores do app; o primeiro é o padrão. As cores ficam na página
+// (ui/index.html).
+var Themes = []string{"escuro", "claro", "meia-noite", "roxo", "cafe"}
 
 // Version é a versão atual do formato. Ao subir, adicione a migração em Normalize.
 const Version = 2
@@ -56,6 +62,9 @@ func (c *Config) Normalize() {
 	}
 	if c.OnClose != "minimize" && c.OnClose != "quit" {
 		c.OnClose = "tray"
+	}
+	if !slices.Contains(Themes, c.Theme) {
+		c.Theme = Themes[0]
 	}
 	if c.MyCode == "" {
 		c.MyCode = NewCode()

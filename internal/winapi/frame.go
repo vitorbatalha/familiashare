@@ -77,6 +77,17 @@ func (f *Frame) wndProc(hwnd, msg, wp, lp uintptr) uintptr {
 	return r
 }
 
+// SetTheme acompanha o tema da página: modo escuro ou claro no menu da janela e a cor da
+// borda (0x00BBGGRR).
+func (f *Frame) SetTheme(dark bool, border uint32) {
+	d := uint32(0)
+	if dark {
+		d = 1
+	}
+	procDwmSetWindowAttribute.Call(f.hwnd, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, uintptr(unsafe.Pointer(&d)), 4)
+	procDwmSetWindowAttribute.Call(f.hwnd, 34 /* DWMWA_BORDER_COLOR */, uintptr(unsafe.Pointer(&border)), 4)
+}
+
 // Maximized diz se a janela está maximizada.
 func (f *Frame) Maximized() bool {
 	z, _, _ := procIsZoomed.Call(f.hwnd)

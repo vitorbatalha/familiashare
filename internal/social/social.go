@@ -589,6 +589,15 @@ func (a *Service) SetOnClose(v string) {
 	a.persist()
 }
 
+// SetTheme escolhe o tema de cores do app (config.Themes).
+func (a *Service) SetTheme(v string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.cfg.Theme = v
+	a.cfg.Normalize()
+	a.persist()
+}
+
 // OnClose é o que o botão de fechar faz (ver SetOnClose).
 func (a *Service) OnClose() string {
 	a.mu.Lock()

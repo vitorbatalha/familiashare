@@ -6,6 +6,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -30,6 +31,14 @@ func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *w
 
 	// preferências do app
 	w.Bind("goSetOnClose", func(v string) { svc.SetOnClose(v) })
+	// tema: a página manda o nome (salvo), se é escuro e a cor da borda ("#rrggbb")
+	w.Bind("goSetTheme", func(name string, dark bool, border string) {
+		svc.SetTheme(name)
+		var r, g, b uint32
+		if _, err := fmt.Sscanf(border, "#%02x%02x%02x", &r, &g, &b); err == nil {
+			frame.SetTheme(dark, b<<16|g<<8|r)
+		}
+	})
 	w.Bind("goFirstShareHint", func() bool { return svc.FirstShareHint() })
 	w.Bind("goQuit", func() { w.Dispatch(w.Terminate) })
 	w.Bind("goOpenLogs", func() { winapi.OpenURL(dataDir) }) // para mandar o familiashare.log a quem ajuda

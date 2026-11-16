@@ -5,24 +5,32 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>familiashare</title>
 <style>
-:root{color-scheme:dark;--bg:#0b0b0c;--fg:#f5ebdd;--mute:#a1a1a8;--line:#26262a;--card:#141416;--foot:#101012;--red:#e5484d;--green:#3dd68c;--tb:32px}
+/* Temas: cada um só troca as cores. --btn/--on são o botão principal e o texto nele;
+   --foot é a lateral; --raised, avisos e menus; --edge e --edge2, bordas; --sel, item
+   escolhido. O palco (telas) é sempre escuro. A lista de nomes fica em config.Themes. */
+:root{--tb:32px}
+:root,[data-theme=escuro]{color-scheme:dark;--bg:#0b0b0c;--fg:#f5ebdd;--fg2:#cfcfd4;--mute:#a1a1a8;--faint:#55555c;--dim:#4a4a50;--line:#26262a;--card:#141416;--foot:#101012;--hover:#18181b;--raised:#1d1d21;--sel:#2a2a30;--edge:#33333a;--edge2:#4a4a52;--btn:#f5ebdd;--on:#0b0b0c;--red:#e5484d;--redbg:#2a1416;--green:#3dd68c;--greenbg:#1f3a2c;--err:#ff8a8d}
+[data-theme=claro]{color-scheme:light;--bg:#f7f4ee;--fg:#1f1c18;--fg2:#3b3832;--mute:#6e6960;--faint:#a39b8e;--dim:#bdb5a8;--line:#e3ddd2;--card:#ffffff;--foot:#efeae1;--hover:#e8e1d5;--raised:#ffffff;--sel:#e0d8ca;--edge:#d6cdbf;--edge2:#b5ab9c;--btn:#1f1c18;--on:#ffffff;--redbg:#fbe1e1;--green:#1e9a5a;--greenbg:#d9f2e4;--err:#c4282d}
+[data-theme=meia-noite]{--bg:#0a0f1d;--fg:#e6edf7;--fg2:#c7d1e2;--mute:#8b97ae;--faint:#4f5a74;--dim:#3d4862;--line:#1b2440;--card:#111a2e;--foot:#0d1427;--hover:#151f37;--raised:#18233d;--sel:#21304f;--edge:#27334f;--edge2:#3c4a6c;--btn:#8fb0ff;--on:#0a0f1d;--redbg:#2c1622;--greenbg:#12302b}
+[data-theme=roxo]{--bg:#313338;--fg:#f2f3f5;--fg2:#dbdee1;--mute:#b5bac1;--faint:#80848e;--dim:#6d6f78;--line:#3f4147;--card:#383a40;--foot:#2b2d31;--hover:#35373c;--raised:#3c3e44;--sel:#45474e;--edge:#4e5058;--edge2:#6d6f78;--btn:#5865f2;--on:#ffffff;--redbg:#4a2a2e;--greenbg:#27413a}
+[data-theme=cafe]{--bg:#16110d;--fg:#f3e6d3;--fg2:#dccbb5;--mute:#a8998a;--faint:#6b5a4b;--dim:#5a4b3f;--line:#2d231b;--card:#1f1812;--foot:#1a140f;--hover:#251d16;--raised:#2a2119;--sel:#382b21;--edge:#3b2f25;--edge2:#56463a;--btn:#e3a869;--on:#16110d;--redbg:#3a1a18;--greenbg:#1f3326}
 html.fs{--tb:0px}
 *{box-sizing:border-box;margin:0}
 html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Segoe UI",sans-serif;user-select:none;overflow:hidden}
 select,input,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%;min-width:0;outline:none;text-overflow:ellipsis}
-select:focus,input:focus{border-color:#4a4a52}
-button{background:var(--fg);color:var(--bg);font-weight:600;cursor:pointer;border-color:var(--fg);white-space:nowrap;text-align:center}
+select:focus,input:focus{border-color:var(--edge2)}
+button{background:var(--btn);color:var(--on);font-weight:600;cursor:pointer;border-color:var(--fg);white-space:nowrap;text-align:center}
 button:disabled{opacity:.5;cursor:default}
-button.ghost{background:var(--card);color:var(--fg);border-color:#2c2c31}
+button.ghost{background:var(--card);color:var(--fg);border-color:var(--edge)}
 button.small{padding:6px 12px;font-size:12px;width:auto;flex:none}
 button.live{background:var(--red);border-color:var(--red);color:#fff}
-button.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;flex:none;background:var(--card);color:var(--fg);border-color:#2c2c31}
+button.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;flex:none;background:var(--card);color:var(--fg);border-color:var(--edge)}
 .row{display:flex;gap:8px;align-items:center;min-width:0}
 .row>input,.row>select{flex:1}
 .row>button{flex:none;width:auto}
 .muted{color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
-.err{color:#ff8a8d;font-size:12px}
+.err{color:var(--err);font-size:12px}
 p:empty{display:none}
 h2{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
 
@@ -42,14 +50,14 @@ html:not(.room) #stage,html.collapsed #side,html.fs #side{display:none}
 #top{flex:none;padding:8px 16px 12px;display:flex;align-items:center;gap:10px}
 #top .me{flex:1;min-width:0}
 #myName{all:unset;display:block;width:100%;font-weight:700;font-size:15px;cursor:text;border-radius:6px;padding:1px 4px;margin-left:-4px}
-#myName:hover{background:#18181b}
-#myName:focus{background:#18181b;outline:1px solid #3a3a42}
-#myCode{font-family:ui-monospace,Consolas,monospace;color:var(--fg);cursor:pointer;border-radius:5px;padding:1px 5px;margin-left:-2px;text-decoration:underline dotted #55555c;text-underline-offset:3px}
-#myCode:hover{background:#1d1d21}
+#myName:hover{background:var(--hover)}
+#myName:focus{background:var(--hover);outline:1px solid var(--edge)}
+#myCode{font-family:ui-monospace,Consolas,monospace;color:var(--fg);cursor:pointer;border-radius:5px;padding:1px 5px;margin-left:-2px;text-decoration:underline dotted var(--faint);text-underline-offset:3px}
+#myCode:hover{background:var(--raised)}
 #copied{color:var(--green);font-size:11px;margin-left:4px}
 #tabs{flex:none;margin:0 16px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:11px}
 #tabs button{height:36px;border:0;border-radius:8px;background:transparent;color:var(--mute);padding:0 8px;overflow:hidden}
-#tabs button.on{background:var(--fg);color:var(--bg);font-weight:700}
+#tabs button.on{background:var(--btn);color:var(--on);font-weight:700}
 .count{display:inline-block;min-width:18px;padding:0 5px;margin-left:4px;border-radius:99px;background:var(--red);color:#fff;font-size:11px;line-height:18px}
 .pane{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
 #foot{flex:none;padding:12px 16px 16px;border-top:1px solid var(--line);background:var(--foot);display:flex;flex-direction:column;gap:10px}
@@ -59,18 +67,18 @@ html:not(.room) #stage,html.collapsed #side,html.fs #side{display:none}
 #foot .icon{width:46px;height:46px;border-radius:11px}
 #camBtn.live{background:var(--red);border-color:var(--red);color:#fff}
 #leaveRoom:hover{background:var(--red);border-color:var(--red);color:#fff}
-#ver{font-size:11px;color:#55555c;text-align:center;padding:8px 0 0;margin-top:auto}
+#ver{font-size:11px;color:var(--faint);text-align:center;padding:8px 0 0;margin-top:auto}
 
 .seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px}
 .seg button{height:30px;border:0;border-radius:6px;background:transparent;color:var(--mute);padding:0;font-size:12px}
-.seg button.on{background:#2a2a30;color:var(--fg)}
+.seg button.on{background:var(--sel);color:var(--fg)}
 
 /* listas: só um pontinho de status, sem foto/iniciais */
 .list{display:flex;flex-direction:column;gap:2px;min-width:0}
 .list:empty{display:none}
 .item{display:flex;align-items:center;gap:12px;padding:9px 8px;border-radius:9px;min-width:0}
-.item:hover{background:#121214}
-.item.box{background:#1b1b1f;border:1px solid #33333a}
+.item:hover{background:var(--hover)}
+.item.box{background:var(--raised);border:1px solid var(--edge)}
 .item .who{flex:1;min-width:0}
 .item .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .sub{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -78,17 +86,22 @@ html:not(.room) #stage,html.collapsed #side,html.fs #side{display:none}
 .item:hover .x,.item .x:focus{opacity:1}
 .item .x:hover{color:var(--red)}
 /* na sala: ícones de tela e câmera de cada pessoa (vermelho = assistindo; clique para parar/voltar) */
+.group{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:4px;display:flex;flex-direction:column;gap:2px}
+.group .gh{display:flex;align-items:center;gap:12px;padding:8px 8px 6px}
+.group .gh .name{font-weight:700}
+.group .item{padding-left:28px}
+.fh{padding:8px 2px 2px}
 .item .live{display:flex;gap:4px;flex:none}
-.item .live button{all:unset;cursor:pointer;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--red);background:#2a1416}
-.item .live button.off{color:#6b6b72;background:#1a1a1d}
-.item .live button:hover{outline:1px solid #ffffff30}
+.item .live button{all:unset;cursor:pointer;width:32px;height:32px;border-radius:8px;display:grid;place-items:center;color:var(--red);background:var(--redbg)}
+.item .live button.off{color:var(--dim);background:var(--raised)}
+.item .live button:hover{outline:1px solid var(--edge2)}
 .item .live span{width:32px;height:32px;display:grid;place-items:center;color:var(--red)}
 #members .item .name{font-size:15px}
-.st{width:9px;height:9px;border-radius:50%;background:#4a4a50;flex:none}
+.st{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:none}
 .st.on{background:var(--green)}
 .st.live{background:var(--red);animation:p 1.6s infinite}
-.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid #2c2c31;color:var(--mute);background:transparent;width:auto;flex:none}
-button.badge:hover{border-color:#4a4a52;color:var(--fg)}
+.badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:99px;border:1px solid var(--edge);color:var(--mute);background:transparent;width:auto;flex:none}
+button.badge:hover{border-color:var(--edge2);color:var(--fg)}
 .head{display:flex;align-items:center;gap:8px}
 .head h2{flex:1}
 .empty{color:var(--mute);text-align:center;padding:40px 12px;line-height:1.6}
@@ -96,18 +109,18 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 
 /* painel de configurações da transmissão (abre por cima, tudo visível de uma vez) */
 #sheet{position:fixed;inset:var(--tb) 0 0;z-index:8;background:#00000099;display:flex;justify-content:flex-end}
-#sheet .panel{width:min(440px,100%);height:100%;background:var(--card);border-left:1px solid #2c2c31;display:flex;flex-direction:column}
+#sheet .panel{width:min(440px,100%);height:100%;background:var(--card);border-left:1px solid var(--edge);display:flex;flex-direction:column}
 #sheet header{display:flex;align-items:center;padding:16px 18px 10px}
 #sheet header div{flex:1;font-size:17px;font-weight:700}
 #sheet .body{flex:1;min-height:0;overflow-y:auto;padding:4px 18px 18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-content:start}
 #sheet label{display:grid;gap:5px;font-size:12px;color:var(--mute);min-width:0}
 #sheet .full{grid-column:1/-1}
-#sheet select,#sheet input{background:#0f0f11}
+#sheet select,#sheet input{background:var(--bg)}
 #sheet .check{display:flex;align-items:center;gap:10px;color:var(--fg);font-size:14px;cursor:pointer}
 #sheet .check input{width:18px;height:18px;flex:none;accent-color:var(--fg)}
 #sheet hr{grid-column:1/-1;border:0;height:1px;background:var(--line)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{display:inline-flex;align-items:center;gap:6px;background:#1d1d21;border:1px solid #2c2c31;border-radius:99px;padding:3px 6px 3px 10px;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--raised);border:1px solid var(--edge);border-radius:99px;padding:3px 6px 3px 10px;font-size:12px}
 .chip button{all:unset;cursor:pointer;color:var(--mute);padding:0 4px}
 .chip button:hover{color:var(--fg)}
 
@@ -116,12 +129,12 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 #prefs nav{width:150px;flex:none;background:var(--foot);border-right:1px solid var(--line);padding:18px 8px 14px;display:flex;flex-direction:column;gap:2px}
 #prefs nav h2{padding:0 10px 8px}
 #prefs nav button{all:unset;cursor:pointer;padding:8px 10px;border-radius:7px;color:var(--mute)}
-#prefs nav button:hover{background:#18181b;color:var(--fg)}
-#prefs nav button.on{background:#232328;color:var(--fg)}
-#prefs nav .v{margin-top:auto;padding:0 10px;font-size:11px;color:#55555c}
-#prefs main{flex:1;min-width:0;overflow-y:auto;padding:18px 18px 24px;position:relative;scrollbar-width:thin;scrollbar-color:#33333a transparent}
+#prefs nav button:hover{background:var(--hover);color:var(--fg)}
+#prefs nav button.on{background:var(--sel);color:var(--fg)}
+#prefs nav .v{margin-top:auto;padding:0 10px;font-size:11px;color:var(--faint)}
+#prefs main{flex:1;min-width:0;overflow-y:auto;padding:18px 18px 24px;position:relative;scrollbar-width:thin;scrollbar-color:var(--edge) transparent}
 #prefs main h1{font-size:18px;margin:0 44px 14px 0}
-#prefsClose{all:unset;cursor:pointer;position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid #3a3a42;border-radius:50%;display:grid;place-items:center;color:var(--mute);font-size:16px}
+#prefsClose{all:unset;cursor:pointer;position:absolute;top:14px;right:14px;width:32px;height:32px;border:1px solid var(--edge);border-radius:50%;display:grid;place-items:center;color:var(--mute);font-size:16px}
 #prefsClose:hover{color:var(--fg);border-color:var(--mute)}
 .pref{display:grid;gap:6px;padding:12px 0;border-bottom:1px solid var(--line)}
 .pref:last-child{border-bottom:0}
@@ -129,36 +142,47 @@ button.badge:hover{border-color:#4a4a52;color:var(--fg)}
 .pref button{width:auto;justify-self:start}
 .radios{display:grid;gap:6px}
 .radios label{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid var(--line);border-radius:9px;cursor:pointer}
-.radios label:has(input:checked){border-color:#4a4a52;background:#141416}
+.radios label:has(input:checked){border-color:var(--edge2);background:var(--card)}
 .radios input{width:16px;height:16px;flex:none;margin:2px 0 0;padding:0;accent-color:var(--fg)}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.theme{all:unset;cursor:pointer;display:grid;gap:8px;padding:8px;border:1px solid var(--line);border-radius:11px;background:var(--card);font-size:13px;font-weight:600}
+.pref .theme{width:auto;justify-self:stretch}
+.theme:hover{border-color:var(--edge2)}
+.theme.on{border-color:var(--fg);box-shadow:0 0 0 1px var(--fg)}
+.sw{display:flex;height:70px;border-radius:7px;overflow:hidden;border:1px solid var(--line)}
+.sw i{display:block;width:34%;background:var(--foot);border-right:1px solid var(--line)}
+.sw span{flex:1;background:var(--bg);position:relative}
+.sw u{position:absolute;left:10px;top:12px;width:55%;height:7px;border-radius:4px;background:var(--fg)}
+.sw s{position:absolute;left:10px;top:25px;width:35%;height:6px;border-radius:3px;background:var(--mute)}
+.sw b{position:absolute;left:10px;right:10px;bottom:10px;height:14px;border-radius:5px;background:var(--btn)}
 .radios em{font-style:normal;color:var(--mute);font-size:12px}
 .radios small{display:block;color:var(--mute);font-size:12px;margin-top:2px}
 
 /* quem está assistindo a sua transmissão (rodapé) */
 #statusRow{position:relative;display:flex;align-items:center;gap:8px;min-width:0}
 #statusRow .muted{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#eye{all:unset;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;background:#1d1d21;border:1px solid #3a3a42;font-size:12px;font-variant-numeric:tabular-nums}
+#eye{all:unset;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:99px;background:var(--raised);border:1px solid var(--edge);font-size:12px;font-variant-numeric:tabular-nums}
 #eye:hover,#eye.on{border-color:var(--mute)}
-#eyePop{position:absolute;left:0;bottom:calc(100% + 8px);z-index:4;background:#1d1d21;border:1px solid #3a3a42;border-radius:10px;padding:8px;min-width:190px;max-width:100%;box-shadow:0 6px 24px #0008}
+#eyePop{position:absolute;left:0;bottom:calc(100% + 8px);z-index:4;background:var(--raised);border:1px solid var(--edge);border-radius:10px;padding:8px;min-width:190px;max-width:100%;box-shadow:0 6px 24px #0008}
 #eyePop h2{padding:2px 6px 6px}
 #eyePop .who{display:flex;align-items:center;gap:8px;padding:5px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rel{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px}
 .rel .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .rel .top b{font-size:15px}
-.rel .now{font-size:11px;padding:1px 8px;border-radius:99px;background:#1f3a2c;color:var(--green)}
+.rel .now{font-size:11px;padding:1px 8px;border-radius:99px;background:var(--greenbg);color:var(--green)}
 .rel h3{font-size:11px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 4px}
-.rel ul{margin:0;padding-left:18px;color:#cfcfd4;user-select:text}
+.rel ul{margin:0;padding-left:18px;color:var(--fg2);user-select:text}
 .rel li{margin-bottom:3px}
 
 #toasts{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);display:grid;gap:6px;width:min(420px,calc(100% - 32px));z-index:10}
-.toast{background:#1d1d21;border:1px solid #33333a;border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s;display:flex;gap:10px;align-items:flex-start}
+.toast{background:var(--raised);border:1px solid var(--edge);border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0008;animation:in .2s;display:flex;gap:10px;align-items:flex-start}
 .toast span{flex:1}
 .toast button{all:unset;cursor:pointer;color:var(--mute);font-size:16px;line-height:1.2;padding:0 2px}
 .toast button:hover{color:var(--fg)}
 @keyframes in{from{opacity:0;transform:translateY(6px)}}
 
 /* ===== Palco: todas as telas e câmeras da sala (estilo Discord) ===== */
-#stage{flex:1;min-width:0;display:flex;flex-direction:column;background:#000;position:relative}
+#stage{flex:1;min-width:0;display:flex;flex-direction:column;background:#000;color:#f5ebdd;position:relative;--mute:#a1a1a8} /* sempre escuro, em qualquer tema */
 #sbar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 12px;transition:opacity .2s;z-index:3}
 #sbar .t{font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #sbar .sp{flex:1}
@@ -197,11 +221,11 @@ html.fs #tiles{padding:0;gap:4px}
 .tile.small.off .in{font-size:12px;gap:4px}
 #wempty{flex:1;display:grid;place-items:center;color:var(--mute);text-align:center;line-height:1.7;padding:20px}
 /* aviso de versão nova */
-#upd{position:fixed;top:calc(var(--tb) + 10px);left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:#1d1d21;border:1px solid #3a3a42;border-radius:10px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px #0008;width:max-content;max-width:calc(100% - 24px)}
+#upd{position:fixed;top:calc(var(--tb) + 10px);left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:10px;align-items:center;background:var(--raised);border:1px solid var(--edge);border-radius:10px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px #0008;width:max-content;max-width:calc(100% - 24px)}
 #upd span{font-size:13px;min-width:0}
 #upd button{width:auto;flex:none;padding:6px 12px;font-size:12px}
 #upd .x{all:unset;cursor:pointer;color:var(--mute);padding:0 6px;font-size:16px}
-#upd .bar{width:120px;height:6px;background:#2a2a30;border-radius:3px;overflow:hidden;flex:none}
+#upd .bar{width:120px;height:6px;background:var(--sel);border-radius:3px;overflow:hidden;flex:none}
 #upd .bar i{display:block;height:100%;background:var(--green);width:0}
 /* barra de título própria (a do Windows foi tirada: internal/winapi/frame.go) */
 #tb{position:fixed;inset:0 0 auto;height:var(--tb);z-index:30;display:flex;align-items:center;background:var(--bg)}
@@ -210,8 +234,8 @@ html.fs #tb{display:none}
 #tb .wm img{width:20px;height:20px;pointer-events:none}
 html.blur #tb .wm,html.blur #tb .wb{opacity:.5}
 #tb .wb{all:unset;width:46px;height:100%;display:grid;place-items:center;color:var(--fg);font:10px "Segoe Fluent Icons","Segoe MDL2 Assets"}
-#tb .wb:hover{background:#ffffff14}
-#tb .wb:active{background:#ffffff0c}
+#tb .wb:hover{background:var(--hover)}
+#tb .wb:active{background:var(--sel)}
 #tb #wClose:hover{background:#c42b1c;color:#fff;opacity:1}
 #tb #wClose:active{background:#c42b1ccc}
 #tb .rz{position:absolute;top:0;height:4px;z-index:1}
@@ -362,6 +386,7 @@ html.max #tb .rz{display:none}
   <nav>
     <h2>Configurações</h2>
     <button data-pref="general">Geral</button>
+    <button data-pref="look">Aparência</button>
     <button data-pref="news">Novidades</button>
     <div class="v" id="prefsVer"></div>
   </nav>
@@ -385,6 +410,13 @@ html.max #tb .rz{display:none}
       </div>
       <div class="pref">
         <button class="ghost small" id="quitApp">Sair do familiashare</button>
+      </div>
+    </section>
+    <section id="prefLook" hidden>
+      <h1>Aparência</h1>
+      <div class="pref">
+        <b>Tema</b>
+        <div class="themes" id="themes"></div>
       </div>
     </section>
     <section id="prefNews" hidden>
@@ -458,6 +490,7 @@ function render() {
   renderUpdate();
   for (const n of S.notices || []) toast(n);
   if (!cfg) initSettings(S.config);
+  if (!theme) applyTheme(S.config.theme);
   const inRoom = !!S.room;
   // entrou numa sala: vai para a aba Sala; saiu: volta para Amigos
   // e a janela aumenta para caber o palco (e volta ao tamanho de antes ao sair)
@@ -513,9 +546,28 @@ function showPrefs(on) {
 function renderPrefs() {
   if (S) for (const r of $$('#onClose input')) r.checked = r.value === (S.config.onClose || 'tray');
   for (const b of $$('#prefs nav button')) b.classList.toggle('on', b.dataset.pref === prefTab);
-  $('#prefGeneral').hidden = prefTab !== 'general'; $('#prefNews').hidden = prefTab !== 'news';
+  $('#prefGeneral').hidden = prefTab !== 'general'; $('#prefNews').hidden = prefTab !== 'news'; $('#prefLook').hidden = prefTab !== 'look';
+  renderThemes();
   $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
 }
+// Temas de cores: [nome salvo, nome mostrado, é escuro]. As cores ficam no CSS (data-theme).
+const THEMES = [['escuro', 'Escuro', true], ['claro', 'Claro', false], ['meia-noite', 'Meia-noite', true], ['roxo', 'Roxo', true], ['cafe', 'Café', true]];
+let theme = '';
+function applyTheme(name) {
+  if (!THEMES.some(t => t[0] === name)) name = 'escuro';
+  theme = name;
+  document.documentElement.dataset.theme = name;
+  // salva e deixa a borda e o menu da janela do Windows na mesma cor
+  const line = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
+  goSetTheme(name, THEMES.find(t => t[0] === name)[2], line);
+  renderThemes();
+}
+function renderThemes() {
+  setHTML('#themes', THEMES.map(([id, label]) => `<button class="theme ${id === theme ? 'on' : ''}" data-theme-pick="${id}" aria-pressed="${id === theme}">` +
+    `<span class="sw" data-theme="${id}" aria-hidden="true"><i></i><span><u></u><s></s><b></b></span></span>${label}</button>`).join(''));
+}
+$('#themes').onclick = e => { const b = e.target.closest('[data-theme-pick]'); if (b) applyTheme(b.dataset.themePick); };
+
 // "2026-11-01" → "1 nov 2026"; "2026-10" → "out 2026"
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 function fmtDate(d) {
@@ -555,30 +607,39 @@ function renderFriends() {
     ? `Pedido enviado — aguardando ${esc(joinName)} aceitar… <button class="ghost small" data-act="canceljoin" style="margin-left:6px">Cancelar</button>`
     : `Entrando na sala de ${esc(joinName)}…`);
 
-  // dono da sala convida direto da lista de amigos
+  // Amigos em salas públicas ficam agrupados por sala, com o botão de entrar no topo do
+  // grupo (também quando eu já estou numa sala: entrar troca de sala). Como dono, cada
+  // amigo de fora da minha sala tem "Convidar".
   const inMyRoom = new Set(S.room ? S.room.members.map(m => m.code) : []), invited = new Set(S.invited);
   const fr = [...S.friends].sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name));
-  let html = '';
-  for (const f of fr) {
-    let sub = f.online ? 'online' : 'offline', action = '';
-    if (f.room) {
-      const r = f.room, mine = r.owner === f.code;
-      sub = (mine ? (r.public ? 'sala pública' : 'sala particular') : `na sala de ${esc(r.ownerName)}`) +
-        (r.streaming ? ` · ${r.streaming} transmitindo` : ` · ${r.members} ${r.members === 1 ? 'pessoa' : 'pessoas'}`);
-    }
-    if (inMyRoom.has(f.code)) sub = 'nesta sala';
-    else if (S.isOwner && f.online) action = invited.has(f.code) ? '<span class="muted">convidado</span>'
-      : `<button class="ghost small" data-act="invite" data-code="${esc(f.code)}">Convidar</button>`;
-    else if (f.room && f.room.public && !(S.room && S.room.owner === f.room.owner)) {
-      // sala de quem não é meu amigo: o dono precisa aceitar
-      const direct = S.friends.some(x => x.code === f.room.owner), asked = S.asking && S.joining === f.room.owner;
-      action = asked ? '<span class="muted">pedido enviado</span>'
-        : `<button class="${direct ? '' : 'ghost '}small" data-act="join" data-code="${esc(f.room.owner)}">${direct ? 'Entrar' : 'Pedir para entrar'}</button>`;
-    }
-    html += `<div class="item"><span class="st ${f.room && f.room.streaming ? 'live' : f.online ? 'on' : ''}"></span>
-      <div class="who"><div class="name">${esc(f.name)}</div><div class="sub">${sub}</div></div>${action}
+  const invite = f => !S.isOwner || !f.online || inMyRoom.has(f.code) ? ''
+    : invited.has(f.code) ? '<span class="muted">convidado</span>'
+    : `<button class="ghost small" data-act="invite" data-code="${esc(f.code)}">Convidar</button>`;
+  const row = (f, sub, extra = '') => `<div class="item"><span class="st ${f.online ? 'on' : ''}"></span>
+      <div class="who"><div class="name">${esc(f.name)}</div><div class="sub">${sub}</div></div>${extra}${invite(f)}
       <button class="x" title="Remover amigo" aria-label="Remover ${esc(f.name)}" data-act="remove" data-code="${esc(f.code)}">×</button></div>`;
+  const rooms = new Map(); // dono → amigos na sala dele
+  for (const f of fr) {
+    const r = f.room;
+    if (!r || !r.public || inMyRoom.has(f.code) || (S.room && S.room.owner === r.owner)) continue;
+    if (!rooms.has(r.owner)) rooms.set(r.owner, { r, list: [] });
+    rooms.get(r.owner).list.push(f);
   }
+  let html = '';
+  if (rooms.size) html += '<h2 class="fh">Em salas públicas</h2>';
+  for (const [owner, { r, list }] of rooms) {
+    list.sort((a, b) => (b.code === owner) - (a.code === owner)); // o dono primeiro
+    const direct = S.friends.some(x => x.code === owner), asked = S.asking && S.joining === owner;
+    const action = asked ? '<span class="muted">pedido enviado</span>'
+      : `<button class="${direct ? '' : 'ghost '}small" data-act="join" data-code="${esc(owner)}" data-name="${esc(r.ownerName)}">${direct ? 'Entrar' : 'Pedir para entrar'}</button>`;
+    const sub = `${r.members} ${r.members === 1 ? 'pessoa' : 'pessoas'}` + (r.streaming ? ` · ${r.streaming} transmitindo` : '');
+    html += `<div class="group"><div class="gh"><span class="st ${r.streaming ? 'live' : 'on'}"></span>
+      <div class="who"><div class="name">Sala de ${esc(r.ownerName)}</div><div class="sub">${sub}</div></div>${action}</div>` +
+      list.map(f => row(f, f.code === owner ? 'dono' : 'na sala')).join('') + '</div>';
+  }
+  const rest = fr.filter(f => ![...rooms.values()].some(g => g.list.includes(f)));
+  if (rooms.size && rest.length) html += '<h2 class="fh">Amigos</h2>';
+  for (const f of rest) html += row(f, inMyRoom.has(f.code) ? 'nesta sala' : f.online ? 'online' : 'offline');
   for (const p of S.pending) html += `<div class="item"><span class="st"></span><div class="who"><div class="name">${esc(p)}</div><div class="sub">aguardando aceitar seu pedido</div></div>
     <button class="x" title="Cancelar pedido" aria-label="Cancelar pedido" data-act="remove" data-code="${esc(p)}">×</button></div>`;
   if (!html) html = '<p class="empty">Nenhum amigo ainda.<br>Clique no seu código (no topo) para copiar e passe para alguém, ou adicione o código de um amigo.</p>';
@@ -591,7 +652,12 @@ document.addEventListener('click', e => {
   switch (b.dataset.act) {
     case 'accept': goAnswerRequest(code, true); break;
     case 'reject': goAnswerRequest(code, false); break;
-    case 'join': goJoin(code); break;
+    case 'join': {
+      const other = b.dataset.name || nameOf(code);
+      if (S.room && S.isOwner && S.room.members.length > 1 && !confirm(`Entrar na sala de ${other} encerra a sua sala para todos. Continuar?`)) return;
+      if (S.room && S.host.state !== 'idle' && !confirm(`Entrar na sala de ${other} para a sua transmissão. Continuar?`)) return;
+      goJoin(code); break;
+    }
     case 'canceljoin': goCancelJoin(); break;
     case 'ask-yes': goAnswerAsk(code, true); break;
     case 'ask-no': goAnswerAsk(code, false); break;

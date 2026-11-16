@@ -90,3 +90,21 @@ func TestNormCode(t *testing.T) {
 		}
 	}
 }
+
+func TestThemeDefaultsAndKeepsKnown(t *testing.T) {
+	if c := Load(t.TempDir()); c.Theme != "escuro" {
+		t.Errorf("tema = %q, quero escuro", c.Theme)
+	}
+	for _, v := range Themes {
+		c := Config{Theme: v}
+		c.Normalize()
+		if c.Theme != v {
+			t.Errorf("tema %q virou %q", v, c.Theme)
+		}
+	}
+	c := Config{Theme: "rosa-choque"}
+	c.Normalize()
+	if c.Theme != "escuro" {
+		t.Errorf("tema desconhecido virou %q, quero escuro", c.Theme)
+	}
+}
