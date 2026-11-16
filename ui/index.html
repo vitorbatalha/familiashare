@@ -83,12 +83,14 @@ html:not(.room) #stage,html.collapsed #side,html.fs #side{display:none}
 .item .who{flex:1;min-width:0}
 .item .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .item .sub{font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .x{all:unset;cursor:pointer;color:var(--mute);padding:0 4px;font-size:16px;flex:none;opacity:0}
+.item .x{all:unset;cursor:pointer;color:var(--mute);width:20px;text-align:center;font-size:16px;flex:none;opacity:0}
 .item:hover .x,.item .x:focus{opacity:1}
 .item .x:hover{color:var(--red)}
 /* na sala: ícones de tela e câmera de cada pessoa (vermelho = assistindo; clique para parar/voltar) */
-.group{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:4px;display:flex;flex-direction:column;gap:2px}
+.group{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:4px 0;display:flex;flex-direction:column;gap:2px}
 .group .gh{display:flex;align-items:center;gap:12px;padding:8px 8px 6px}
+.group .gh .who{flex:1;min-width:0}
+.group .gh .xs{width:20px;flex:none} /* mesmo espaço do × das linhas: botões alinhados */
 .group .gh .name{font-weight:700}
 .group .item{padding-left:28px}
 .fh{padding:8px 2px 2px}
@@ -635,7 +637,7 @@ function renderFriends() {
       : `<button class="${direct ? '' : 'ghost '}small" data-act="join" data-code="${esc(owner)}" data-name="${esc(r.ownerName)}">${direct ? 'Entrar' : 'Pedir para entrar'}</button>`;
     const sub = `${r.members} ${r.members === 1 ? 'pessoa' : 'pessoas'}` + (r.streaming ? ` · ${r.streaming} transmitindo` : '');
     html += `<div class="group"><div class="gh"><span class="st ${r.streaming ? 'live' : 'on'}"></span>
-      <div class="who"><div class="name">Sala de ${esc(r.ownerName)}</div><div class="sub">${sub}</div></div>${action}</div>` +
+      <div class="who"><div class="name">Sala de ${esc(r.ownerName)}</div><div class="sub">${sub}</div></div>${action}<span class="xs"></span></div>` +
       list.map(f => row(f, f.code === owner ? 'dono' : 'na sala')).join('') + '</div>';
   }
   const rest = fr.filter(f => ![...rooms.values()].some(g => g.list.includes(f)));
