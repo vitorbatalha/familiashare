@@ -12,7 +12,7 @@
 :root,[data-theme=escuro]{color-scheme:dark;--bg:#0b0b0c;--fg:#f5ebdd;--fg2:#cfcfd4;--mute:#a1a1a8;--faint:#55555c;--dim:#4a4a50;--line:#26262a;--card:#141416;--foot:#101012;--hover:#18181b;--raised:#1d1d21;--sel:#2a2a30;--edge:#33333a;--edge2:#4a4a52;--btn:#f5ebdd;--on:#0b0b0c;--red:#e5484d;--redbg:#2a1416;--green:#3dd68c;--greenbg:#1f3a2c;--err:#ff8a8d}
 [data-theme=claro]{color-scheme:light;--bg:#f7f4ee;--fg:#1f1c18;--fg2:#3b3832;--mute:#6e6960;--faint:#a39b8e;--dim:#bdb5a8;--line:#e3ddd2;--card:#ffffff;--foot:#efeae1;--hover:#e8e1d5;--raised:#ffffff;--sel:#e0d8ca;--edge:#d6cdbf;--edge2:#b5ab9c;--btn:#1f1c18;--on:#ffffff;--redbg:#fbe1e1;--green:#1e9a5a;--greenbg:#d9f2e4;--err:#c4282d}
 [data-theme=meia-noite]{--bg:#0a0f1d;--fg:#e6edf7;--fg2:#c7d1e2;--mute:#8b97ae;--faint:#4f5a74;--dim:#3d4862;--line:#1b2440;--card:#111a2e;--foot:#0d1427;--hover:#151f37;--raised:#18233d;--sel:#21304f;--edge:#27334f;--edge2:#3c4a6c;--btn:#8fb0ff;--on:#0a0f1d;--redbg:#2c1622;--greenbg:#12302b}
-[data-theme=roxo]{--bg:#313338;--fg:#f2f3f5;--fg2:#dbdee1;--mute:#b5bac1;--faint:#80848e;--dim:#6d6f78;--line:#3f4147;--card:#383a40;--foot:#2b2d31;--hover:#35373c;--raised:#3c3e44;--sel:#45474e;--edge:#4e5058;--edge2:#6d6f78;--btn:#645394;--on:#ffffff;--redbg:#4a2a2e;--greenbg:#27413a}
+[data-theme=roxo]{--bg:#1b1627;--fg:#f1edf8;--fg2:#d6cfe6;--mute:#b0a6c8;--faint:#6c618d;--dim:#5a4f78;--line:#2d2541;--card:#221c31;--foot:#16121f;--hover:#271f38;--raised:#2b233d;--sel:#372d4d;--edge:#3b3155;--edge2:#56487c;--btn:#645394;--on:#ffffff;--redbg:#3a1a26;--greenbg:#1d3330}
 [data-theme=verde]{--bg:#1a2421;--fg:#e7efe9;--fg2:#c8d5cd;--mute:#9db0a6;--faint:#5e7268;--dim:#4c5e55;--line:#26332e;--card:#202c28;--foot:#151e1b;--hover:#23302b;--raised:#27352f;--sel:#2f3f38;--edge:#33443d;--edge2:#4a5f55;--btn:#8cc9a5;--on:#14201b;--redbg:#3a2225;--greenbg:#1f3d30}
 [data-theme=cafe]{--bg:#16110d;--fg:#f3e6d3;--fg2:#dccbb5;--mute:#a8998a;--faint:#6b5a4b;--dim:#5a4b3f;--line:#2d231b;--card:#1f1812;--foot:#1a140f;--hover:#251d16;--raised:#2a2119;--sel:#382b21;--edge:#3b2f25;--edge2:#56463a;--btn:#e3a869;--on:#16110d;--redbg:#3a1a18;--greenbg:#1f3326}
 html.fs{--tb:0px}
@@ -21,7 +21,7 @@ html,body{height:100%}
 body{background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Segoe UI",sans-serif;user-select:none;overflow:hidden}
 select,input,button{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 10px;width:100%;min-width:0;outline:none;text-overflow:ellipsis}
 select:focus,input:focus{border-color:var(--edge2)}
-button{background:var(--btn);color:var(--on);font-weight:600;cursor:pointer;border-color:var(--fg);white-space:nowrap;text-align:center}
+button{background:var(--btn);color:var(--on);font-weight:600;cursor:pointer;border-color:var(--btn);white-space:nowrap;text-align:center}
 button:disabled{opacity:.5;cursor:default}
 button.ghost{background:var(--card);color:var(--fg);border-color:var(--edge)}
 button.small{padding:6px 12px;font-size:12px;width:auto;flex:none}
@@ -526,7 +526,7 @@ function renderTabs() {
   }
   for (const c of askSeen) if (!S.asks.some(a => a.code === c)) askSeen.delete(c);
 }
-for (const b of $$('#tabs button')) b.onclick = () => { tab = b.dataset.tab; if (S) render(); };
+for (const b of $$('#tabs button')) b.onclick = () => { tab = b.dataset.tab; showAddErr(''); if (S) render(); };
 
 $('#myName').onchange = () => { const n = $('#myName').value.trim(); if (n) goSetName(n); };
 $('#myName').onkeydown = e => { if (e.key === 'Enter') e.target.blur(); };
@@ -679,10 +679,17 @@ document.addEventListener('click', e => {
 
 $('#addFriend').onclick = async () => {
   const err = await goAddFriend($('#addCode').value);
-  $('#addErr').textContent = err || '';
+  showAddErr(err || '');
   if (!err) { $('#addCode').value = ''; toast('Pedido de amizade enviado.'); refresh(); }
 };
 $('#addCode').onkeydown = e => { if (e.key === 'Enter') $('#addFriend').click(); };
+// o aviso de erro ao adicionar some sozinho depois de 3 s (e ao trocar de aba)
+let addErrTimer;
+function showAddErr(t) {
+  $('#addErr').textContent = t;
+  clearTimeout(addErrTimer);
+  if (t) addErrTimer = setTimeout(() => { $('#addErr').textContent = ''; }, 3000);
+}
 
 /* ================= Aba Sala ================= */
 function renderRoom() {
