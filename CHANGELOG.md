@@ -8,6 +8,20 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.6.0] — 2026-11-16
+
+### Adicionado
+- Temas: escolha entre Escuro, Claro, Meia-noite, Roxo, Verde-escuro e Café em
+  Configurações → Aparência.
+
+### Alterado
+- Quando você está em uma sala e um amigo está em outra, agora aparece o botão para entrar
+  na sala dele (ao invés de só poder convidar).
+- Ao compartilhar a sua tela, ela também aparece para você na sala.
+- Na lista de amigos, quem está na mesma sala pública aparece agrupado.
+- Quando alguém começa a compartilhar a tela, você só começa a assistir automaticamente
+  quando o familiashare estiver em primeiro plano.
+
 ## [0.5.0] — 2026-11-14
 
 ### Alterado
