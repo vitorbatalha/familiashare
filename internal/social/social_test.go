@@ -394,3 +394,26 @@ func TestOnlyMembersCanWatch(t *testing.T) {
 		t.Errorf("só membros podem assistir: %v", ana.host.watched)
 	}
 }
+
+// Ver a própria tela: o pedido vai direto para o meu transmissor (não pela rede), e a
+// oferta dele volta direto para a minha página.
+func TestSelfViewStaysLocal(t *testing.T) {
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")
+	befriend(t, ana, beto)
+	ana.SignalFromUI(ana.code, "watch", "", nil)
+	eventually(t, "transmissor recebe o pedido da própria página", func() bool {
+		ana.host.mu.Lock()
+		defer ana.host.mu.Unlock()
+		return len(ana.host.watched) == 1 && ana.host.watched[0] == ana.code
+	})
+	v := selfView{ana.Service}
+	v.SendOffer(ana.code, "sdp-local")
+	v.SendCandidate(ana.code, ana.code, webrtc.ICECandidateInit{Candidate: "c"})
+	v.Send(ana.code, "bye", nil)
+	if ana.ui.count("offer", ana.code) != 1 || ana.ui.count("cand", ana.code) != 1 || ana.ui.count("bye", ana.code) != 1 {
+		t.Fatal("oferta, candidato e bye para mim mesmo deveriam ir direto para a página")
+	}
+	v.SendOffer(beto.code, "sdp-beto") // para os outros continua indo pela rede
+	eventually(t, "Beto recebe a oferta", func() bool { return beto.ui.count("offer", ana.code) == 1 })
+}

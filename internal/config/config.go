@@ -44,7 +44,7 @@ type Config struct {
 
 // Themes são os temas de cores do app; o primeiro é o padrão. As cores ficam na página
 // (ui/index.html).
-var Themes = []string{"escuro", "claro", "meia-noite", "roxo", "cafe"}
+var Themes = []string{"escuro", "claro", "meia-noite", "roxo", "verde", "cafe"}
 
 // Version é a versão atual do formato. Ao subir, adicione a migração em Normalize.
 const Version = 2

@@ -12,7 +12,8 @@
 :root,[data-theme=escuro]{color-scheme:dark;--bg:#0b0b0c;--fg:#f5ebdd;--fg2:#cfcfd4;--mute:#a1a1a8;--faint:#55555c;--dim:#4a4a50;--line:#26262a;--card:#141416;--foot:#101012;--hover:#18181b;--raised:#1d1d21;--sel:#2a2a30;--edge:#33333a;--edge2:#4a4a52;--btn:#f5ebdd;--on:#0b0b0c;--red:#e5484d;--redbg:#2a1416;--green:#3dd68c;--greenbg:#1f3a2c;--err:#ff8a8d}
 [data-theme=claro]{color-scheme:light;--bg:#f7f4ee;--fg:#1f1c18;--fg2:#3b3832;--mute:#6e6960;--faint:#a39b8e;--dim:#bdb5a8;--line:#e3ddd2;--card:#ffffff;--foot:#efeae1;--hover:#e8e1d5;--raised:#ffffff;--sel:#e0d8ca;--edge:#d6cdbf;--edge2:#b5ab9c;--btn:#1f1c18;--on:#ffffff;--redbg:#fbe1e1;--green:#1e9a5a;--greenbg:#d9f2e4;--err:#c4282d}
 [data-theme=meia-noite]{--bg:#0a0f1d;--fg:#e6edf7;--fg2:#c7d1e2;--mute:#8b97ae;--faint:#4f5a74;--dim:#3d4862;--line:#1b2440;--card:#111a2e;--foot:#0d1427;--hover:#151f37;--raised:#18233d;--sel:#21304f;--edge:#27334f;--edge2:#3c4a6c;--btn:#8fb0ff;--on:#0a0f1d;--redbg:#2c1622;--greenbg:#12302b}
-[data-theme=roxo]{--bg:#313338;--fg:#f2f3f5;--fg2:#dbdee1;--mute:#b5bac1;--faint:#80848e;--dim:#6d6f78;--line:#3f4147;--card:#383a40;--foot:#2b2d31;--hover:#35373c;--raised:#3c3e44;--sel:#45474e;--edge:#4e5058;--edge2:#6d6f78;--btn:#5865f2;--on:#ffffff;--redbg:#4a2a2e;--greenbg:#27413a}
+[data-theme=roxo]{--bg:#313338;--fg:#f2f3f5;--fg2:#dbdee1;--mute:#b5bac1;--faint:#80848e;--dim:#6d6f78;--line:#3f4147;--card:#383a40;--foot:#2b2d31;--hover:#35373c;--raised:#3c3e44;--sel:#45474e;--edge:#4e5058;--edge2:#6d6f78;--btn:#645394;--on:#ffffff;--redbg:#4a2a2e;--greenbg:#27413a}
+[data-theme=verde]{--bg:#1a2421;--fg:#e7efe9;--fg2:#c8d5cd;--mute:#9db0a6;--faint:#5e7268;--dim:#4c5e55;--line:#26332e;--card:#202c28;--foot:#151e1b;--hover:#23302b;--raised:#27352f;--sel:#2f3f38;--edge:#33443d;--edge2:#4a5f55;--btn:#8cc9a5;--on:#14201b;--redbg:#3a2225;--greenbg:#1f3d30}
 [data-theme=cafe]{--bg:#16110d;--fg:#f3e6d3;--fg2:#dccbb5;--mute:#a8998a;--faint:#6b5a4b;--dim:#5a4b3f;--line:#2d231b;--card:#1f1812;--foot:#1a140f;--hover:#251d16;--raised:#2a2119;--sel:#382b21;--edge:#3b2f25;--edge2:#56463a;--btn:#e3a869;--on:#16110d;--redbg:#3a1a18;--greenbg:#1f3326}
 html.fs{--tb:0px}
 *{box-sizing:border-box;margin:0}
@@ -551,7 +552,7 @@ function renderPrefs() {
   $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
 }
 // Temas de cores: [nome salvo, nome mostrado, é escuro]. As cores ficam no CSS (data-theme).
-const THEMES = [['escuro', 'Escuro', true], ['claro', 'Claro', false], ['meia-noite', 'Meia-noite', true], ['roxo', 'Roxo', true], ['cafe', 'Café', true]];
+const THEMES = [['escuro', 'Escuro', true], ['claro', 'Claro', false], ['meia-noite', 'Meia-noite', true], ['roxo', 'Roxo', true], ['verde', 'Verde-escuro', true], ['cafe', 'Café', true]];
 let theme = '';
 function applyTheme(name) {
   if (!THEMES.some(t => t[0] === name)) name = 'escuro';
@@ -706,7 +707,7 @@ function renderRoom() {
   const liveBtn = (key, cam, name) => {
     anyLive = true;
     const on = !stopped.has(key), what = cam ? 'a câmera' : 'a tela';
-    const title = key === 'self' ? (on ? 'Esconder sua câmera aqui (ela continua ligada para os outros)' : 'Mostrar sua câmera aqui')
+    const title = isMine(key) ? (on ? `Esconder ${what === 'a câmera' ? 'sua câmera' : 'sua tela'} aqui (os outros continuam vendo)` : `Mostrar ${what === 'a câmera' ? 'sua câmera' : 'sua tela'} aqui`)
       : on ? `Parar de assistir ${what} de ${name}` : `Assistir ${what} de ${name}`;
     return `<button class="${on ? '' : 'off'}" data-act="toggle" data-code="${esc(key)}" title="${esc(title)}" aria-label="${esc(title)}">${cam ? IC.cam : IC.screen}</button>`;
   };
@@ -719,7 +720,7 @@ function renderRoom() {
       : `<button class="ghost small" data-act="befriend" data-code="${esc(m.code)}">Adicionar</button>`;
     let live = '';
     if (isMe) {
-      if (m.streaming) live += `<span title="Você está compartilhando a tela">${IC.screen}</span>`;
+      if (S.host.state === 'live') live += liveBtn(S.code, false);
       if (camStream) live += liveBtn('self', true);
     } else {
       if (m.streaming) live += liveBtn(m.code, false, m.name);
@@ -952,12 +953,13 @@ const IC = {
   low: svg('<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/>'),
   mute: svg('<path d="M11 5L6 9H2v6h4l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>'),
 };
-const tagOf = key => key === 'self' ? 'Sua câmera' : nameOf(key) + (key.startsWith('cam:') ? ' · câmera' : '');
+const tagOf = key => key === 'self' ? 'Sua câmera' : S && key === S.code ? 'Sua tela' : nameOf(key) + (key.startsWith('cam:') ? ' · câmera' : '');
+const isMine = key => key === 'self' || (S && key === S.code); // minha câmera ou minha tela
 // pede a tela (ao Go/Pion de quem transmite) ou a câmera (à página de quem mostra)
 const askStream = s => s.cam ? goCamSignal(s.who, 'cam-watch', '') : goSignal(s.who, 'watch', '', null);
 // botões do canto do quadro: tela cheia e parar de assistir (na minha câmera: esconder)
 const tools = key => `<div class="tools"><button class="b" data-act="tilefs" data-code="${esc(key)}" title="Tela cheia" aria-label="Tela cheia">${IC.fs}</button>` +
-  `<button class="b x" data-act="close" data-code="${esc(key)}" title="${key === 'self' ? 'Esconder sua câmera aqui (ela continua ligada)' : 'Parar de assistir'}" aria-label="${key === 'self' ? 'Esconder sua câmera' : 'Parar de assistir'}">${IC.x}</button></div>`;
+  `<button class="b x" data-act="close" data-code="${esc(key)}" title="${isMine(key) ? 'Esconder aqui (os outros continuam vendo)' : 'Parar de assistir'}" aria-label="${isMine(key) ? 'Esconder aqui' : 'Parar de assistir'}">${IC.x}</button></div>`;
 
 function closeWatch() {
   for (const code of [...sessions.keys()]) watchRemove(code, true);
@@ -975,12 +977,12 @@ function watchAdd(code) {
   if (sessions.has(code)) return;
   const tile = document.createElement('div');
   tile.className = 'tile'; tile.dataset.key = code;
-  const cam = code.startsWith('cam:'), who = whoOf(code);
+  const cam = code.startsWith('cam:'), who = whoOf(code), mine = code === S.code;
   tile.innerHTML = `<video playsinline autoplay></video><div class="msg"></div><div class="stats"></div>
-    <div class="tag"><span></span>${cam ? '' : `<span class="vol"><button class="b" data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)" aria-label="Som">${IC.vol}</button><input type="range" min="0" max="100" title="Volume" aria-label="Volume"></span>`}</div>${tools(code)}`;
+    <div class="tag"><span></span>${cam || mine ? '' : `<span class="vol"><button class="b" data-act="mute" data-code="${esc(code)}" title="Som (passe o mouse para o volume)" aria-label="Som">${IC.vol}</button><input type="range" min="0" max="100" title="Volume" aria-label="Volume"></span>`}</div>${tools(code)}`;
   tile.querySelector('.tag span').textContent = tagOf(code);
   const s = { code, who, cam, pc: null, tile, video: tile.querySelector('video'), lastBytes: 0, ping: null, timers: [], muted: false };
-  if (cam) s.video.muted = true; // câmera não tem som
+  if (cam || mine) { s.video.muted = s.muted = true; } // câmera não tem som; a minha tela, sem som para não dar eco
   else {
     const range = tile.querySelector('.vol input');
     range.value = Math.round((volumes.get(code) ?? 1) * 100);
@@ -1013,7 +1015,7 @@ function tileMsg(s, t) { const m = s.tile.querySelector('.msg'); m.textContent =
 const volumes = new Map(); // volume escolhido para cada pessoa (vale enquanto o app estiver aberto)
 
 function toggleMute(code) {
-  const s = sessions.get(code); if (!s || s.cam) return;
+  const s = sessions.get(code); if (!s || s.cam || s.code === S.code) return;
   s.muted = !s.muted; s.video.muted = s.muted;
   if (!s.muted && s.video.volume === 0) { // desmutar com volume zerado: volta para 50%
     s.video.volume = 0.5; volumes.set(code, 0.5); s.tile.querySelector('.vol input').value = 50;
@@ -1034,6 +1036,7 @@ function liveKeys() {
     if (m.streaming) keys.push(m.code);
     if (m.camera) keys.push('cam:' + m.code);
   }
+  if (S.host.state === 'live') keys.push(S.code); // a minha tela, como os outros a recebem
   if (camStream) keys.push('self');
   return keys;
 }
@@ -1044,6 +1047,9 @@ function syncTiles() {
   const live = liveKeys();
   for (const k of live) {
     if (stopped.has(k)) continue;
+    // tela nova de outra pessoa só começa com o app em foco: quem está num jogo em tela
+    // cheia não passa a ouvir uma transmissão do nada (começa ao voltar para o app)
+    if (!sessions.has(k) && !k.startsWith('cam:') && !isMine(k) && !document.hasFocus()) continue;
     if (k !== 'self') watchAdd(k);
     else if (!selfTile) {
       selfTile = document.createElement('div');
@@ -1060,8 +1066,8 @@ function syncTiles() {
     if (!el) {
       el = document.createElement('div');
       el.className = 'tile off'; el.dataset.key = k;
-      el.innerHTML = `<div class="in">${k === 'self' || k.startsWith('cam:') ? IC.cam : IC.screen}<span>${k === 'self' ? 'Escondida aqui' : 'Você parou de assistir'}<br><b></b></span>` +
-        `<button class="ghost small" data-act="rewatch" data-code="${esc(k)}">${k === 'self' ? 'Mostrar' : 'Assistir de novo'}</button></div>`;
+      el.innerHTML = `<div class="in">${k === 'self' || k.startsWith('cam:') ? IC.cam : IC.screen}<span>${isMine(k) ? 'Escondida aqui' : 'Você parou de assistir'}<br><b></b></span>` +
+        `<button class="ghost small" data-act="rewatch" data-code="${esc(k)}">${isMine(k) ? 'Mostrar' : 'Assistir de novo'}</button></div>`;
       $('#tiles').appendChild(el); offTiles.set(k, el);
     }
     el.querySelector('b').textContent = tagOf(k);
@@ -1074,7 +1080,7 @@ function syncTiles() {
 // a posição na grade): mover um <video> o faria parar.
 function layout() {
   const box = $('#tiles'), list = [...sessions.values()];
-  const active = [...list.filter(s => !s.cam), ...list.filter(s => s.cam)].map(s => s.tile);
+  const active = [...list.filter(s => !s.cam && s.code !== S.code), ...list.filter(s => s.code === S.code), ...list.filter(s => s.cam)].map(s => s.tile);
   if (selfTile) active.push(selfTile);
   const all = [...active, ...offTiles.values()];
   $('#wempty').hidden = all.length > 0; box.hidden = !all.length;
@@ -1115,6 +1121,7 @@ function layout() {
   });
 }
 addEventListener('resize', () => { if (S && S.room) layout(); });
+addEventListener('focus', () => { if (S && S.room) syncTiles(); });
 
 // clicar num quadro o põe em destaque; clique duplo: tela cheia
 $('#tiles').onclick = e => {
@@ -1135,8 +1142,10 @@ function syncWatch() {
     if (sessions.size || selfTile || offTiles.size || stopped.size) closeWatch();
     camStop(); return;
   }
+  if (S.host.state !== 'live') { stopped.delete(S.code); if (sessions.has(S.code)) watchRemove(S.code, true); }
   for (const s of sessions.values()) {
     s.tile.querySelector('.tag span').textContent = tagOf(s.code);
+    if (s.code === S.code) continue;
     const m = S.room.members.find(x => x.code === s.who);
     if (!m || !(s.cam ? m.camera : m.streaming)) streamEnded(s);
   }
@@ -1407,7 +1416,7 @@ $('#layoutBtn').onclick = () => { mode = mode === 'grid' ? 'focus' : 'grid'; lay
 addEventListener('keydown', e => {
   if (!S || !S.room || !$('#prefs').hidden || !$('#sheet').hidden || e.target.matches('input:not([type=range]), select')) return;
   if (e.key === 'f' || e.key === 'F' || e.key === 'F11') { e.preventDefault(); toggleFs(); }
-  else if (e.key === 'm' || e.key === 'M') { const scr = [...sessions.values()].filter(s => !s.cam), anyOn = scr.some(s => !s.muted); for (const s of scr) if (s.muted === !anyOn) toggleMute(s.code); }
+  else if (e.key === 'm' || e.key === 'M') { const scr = [...sessions.values()].filter(s => !s.cam && s.code !== S.code), anyOn = scr.some(s => !s.muted); for (const s of scr) if (s.muted === !anyOn) toggleMute(s.code); }
   else if (e.key === 'i' || e.key === 'I') showStats = !showStats;
   else if (e.key === 'Escape' && fsOn) toggleFs();
 });

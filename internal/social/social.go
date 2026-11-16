@@ -810,7 +810,7 @@ func (a *Service) StartShare(cfg config.Config) error {
 	a.mergeShareSettings(cfg)
 	cfg = a.cfg
 	a.mu.Unlock()
-	if err := a.host.Start(cfg, a.net); err != nil {
+	if err := a.host.Start(cfg, selfView{a}); err != nil {
 		return err
 	}
 	a.setStreaming(true)
@@ -905,8 +905,57 @@ func (a *Service) CamSignal(dst, t string, d json.RawMessage) {
 	a.net.Send(dst, t, d)
 }
 
-// SignalFromUI repassa mensagens WebRTC do espectador (JS) para quem transmite.
+// selfView deixa a pessoa assistir à própria transmissão na sala (o mesmo vídeo que os
+// outros recebem): o que o transmissor mandaria pela rede para mim mesmo vai direto para a
+// página, e o resto segue pela sinalização.
+type selfView struct{ a *Service }
+
+func (v selfView) Me() string { return v.a.net.Me() }
+
+func (v selfView) Send(dst, t string, d any) error {
+	if dst != v.Me() {
+		return v.a.net.Send(dst, t, d)
+	}
+	if t == "bye" {
+		v.a.toUI(map[string]any{"kind": "bye", "src": dst})
+	}
+	return nil
+}
+
+func (v selfView) SendOffer(dst, sdp string) error {
+	if dst != v.Me() {
+		return v.a.net.SendOffer(dst, sdp)
+	}
+	v.a.toUI(map[string]any{"kind": "offer", "src": dst, "sdp": sdp})
+	return nil
+}
+
+func (v selfView) SendCandidate(dst, streamOwner string, c webrtc.ICECandidateInit) error {
+	if dst != v.Me() {
+		return v.a.net.SendCandidate(dst, streamOwner, c)
+	}
+	v.a.toUI(map[string]any{"kind": "cand", "src": dst, "candidate": c})
+	return nil
+}
+
+// SignalFromUI repassa mensagens WebRTC do espectador (JS) para quem transmite. Se quem
+// transmite sou eu (a página mostrando a minha tela), vai direto para o transmissor.
 func (a *Service) SignalFromUI(dst, kind, sdp string, cand *webrtc.ICECandidateInit) {
+	if dst == a.net.Me() {
+		switch kind { // em goroutine: as funções da página não podem esperar
+		case "watch":
+			go a.host.HandleWatch(dst)
+		case "unwatch":
+			go a.host.HandleUnwatch(dst)
+		case "answer":
+			go a.host.HandleAnswer(dst, sdp)
+		case "cand":
+			if cand != nil {
+				go a.host.HandleCandidate(dst, *cand)
+			}
+		}
+		return
+	}
 	switch kind {
 	case "watch", "unwatch":
 		a.net.Send(dst, kind, nil)
@@ -952,6 +1001,18 @@ type State struct {
 // State devolve o estado atual (e consome os avisos pendentes).
 func (a *Service) State() State {
 	hostStats := a.host.Stats()
+	if a.net != nil { // eu vendo a minha própria tela não conta como espectador
+		me, ws := a.net.Me(), hostStats.Watchers[:0:0]
+		for _, w := range hostStats.Watchers {
+			if w != me {
+				ws = append(ws, w)
+			}
+		}
+		if len(ws) < len(hostStats.Watchers) {
+			hostStats.Viewers--
+		}
+		hostStats.Watchers = ws
+	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	// listas sempre como [] (nunca null) para a interface
