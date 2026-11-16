@@ -5,76 +5,57 @@
 <h1 align="center">familiashare</h1>
 
 <p align="center">
-  Compartilhamento de tela entre amigos, para Windows — leve, em alta qualidade e sem servidor próprio.
+  Compartilhe a tela com seus amigos, em alta qualidade.
 </p>
 
 ---
 
-O familiashare é um app pequeno para transmitir a tela (jogos, vídeos, o que for) para
-amigos, com qualidade de verdade: resolução nativa, 60 fps e bitrate alto, codificados pela
-placa de vídeo. Funciona como um "canal de voz" de telas: cada pessoa abre uma sala, os
-amigos entram, e qualquer um pode compartilhar a tela ao mesmo tempo.
+O familiashare é um app para Windows feito para assistir junto: um amigo compartilha o
+jogo, o filme ou o que estiver na tela, e os outros assistem com imagem nítida e fluida,
+sem travar o PC de quem transmite.
 
-## Recursos
+## O que dá para fazer
 
-- **Alta qualidade com pouco custo**: captura e codificação na GPU (NVIDIA NVENC, AMD AMF,
-  Intel QuickSync), H.264 ou AV1, até 60 fps, bitrate configurável (12 Mbps por padrão).
-  A tela é codificada **uma vez** e enviada a todos.
-- **Telas e câmeras de todos ao mesmo tempo**, estilo Discord: a lateral com quem está na
-  sala e os botões, e à direita tudo o que está sendo transmitido, com destaque, grade,
-  volume por pessoa e tela cheia.
-- **Áudio do PC sem o que você não quer**: exclua apps do áudio transmitido (ex.: o
-  Discord, para seus amigos não ouvirem a call duas vezes).
-- **Amigos e salas**: adicione amigos por código; abra uma sala **pública** (amigos entram
-  sem convite) ou **particular** (só convidados).
-- **Direto entre os PCs** (WebRTC, P2P): o vídeo não passa por servidor nenhum.
-- **Um único `.exe`** que se atualiza sozinho.
+- **Compartilhar a tela** em alta qualidade, com o som do PC.
+- **Ligar a câmera** para seus amigos te verem.
+- **Ver todo mundo ao mesmo tempo**: cada amigo pode compartilhar a tela, e você vê
+  todas lado a lado.
+- **Abrir uma sala** pública (seus amigos entram quando quiserem) ou particular (só
+  quem você convidar).
+- **Tirar o som de apps** da transmissão, como o Discord, para ninguém ouvir eco.
+- **Escolher as cores** do app entre vários temas.
 
-## Instalar
+O vídeo vai direto do seu PC para o dos seus amigos, sem passar por nenhum servidor.
+
+## Como instalar
 
 1. Baixe o `familiashare.exe` mais recente na página de
    [Releases](https://github.com/vitorbatalha/familiashare/releases).
-2. Abra. Na primeira vez o Windows pode mostrar **"O Windows protegeu o computador"**
-   (o app ainda não é assinado digitalmente): clique em **Mais informações → Executar assim
-   mesmo**. Se o Firewall perguntar, **permita** o acesso à rede.
-3. Pronto. O app avisa quando houver versão nova e se atualiza com um clique.
+2. Abra o arquivo. Na primeira vez, o Windows pode avisar que "protegeu o computador":
+   clique em **Mais informações → Executar assim mesmo**. Se o Firewall perguntar,
+   clique em **Permitir**.
+3. Pronto! Quando sair uma versão nova, o próprio app avisa e se atualiza.
 
-**Requisitos:** Windows 10 (versão 2004 ou mais nova) ou Windows 11, com o
-[WebView2](https://go.microsoft.com/fwlink/p/?LinkId=2124703) (já vem no Windows 11).
-Para transmitir com aceleração de hardware: GPU NVIDIA, AMD ou Intel com suporte a
-codificação de vídeo (praticamente todas dos últimos ~8 anos).
+Funciona no Windows 10 e no Windows 11.
 
-## Usar
+## Como usar
 
-- **Amigos**: seu código de amigo fica no topo (botão de copiar ao lado). Cole o código de
-  um amigo na aba **Amigos** e clique em **Adicionar**; ele aceita o pedido.
-- **Sala**: escolha *Pública* ou *Particular* e **Abrir minha sala**. Amigos em salas
-  públicas aparecem com **Entrar**.
-- **Transmitir**: dentro da sala, **Compartilhar tela** ou o botão da câmera. O botão de
-  ajustes (ao lado) abre as configurações: monitor, resolução, fps, bitrate, codec,
-  encoder, câmera e áudio.
-- **Assistir**: ao entrar numa sala, as telas e câmeras de todos aparecem sozinhas. Clique
-  numa para destacar; passe o mouse no alto-falante para o volume. Para parar de assistir
-  alguém, use o ✕ no quadro ou o ícone vermelho ao lado do nome. Teclas: `F` tela cheia,
-  `M` som, `I` estatísticas, `Esc` sai da tela cheia.
+1. **Adicione seus amigos:** clique no seu código, no topo, para copiar e mande para eles.
+   Para adicionar alguém, cole o código dele na aba **Amigos**.
+2. **Abra uma sala** ou entre na sala de um amigo.
+3. **Clique em Compartilhar tela.** As telas e câmeras de quem está na sala aparecem
+   sozinhas; clique em uma para deixá-la maior.
+
+Atalhos enquanto assiste: `F` tela cheia, `M` tira ou volta o som, `Esc` sai da tela cheia.
 
 ## Para desenvolvedores
 
-O app é escrito em **Go** (transmissão, WebRTC, integração com o Windows) com a interface
-em HTML/JS rodando no WebView2, e usa o **FFmpeg** embutido para capturar e codificar.
-
-- [CONTRIBUTING.md](CONTRIBUTING.md) — como compilar, testar e contribuir
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — como o app funciona por dentro
-- [docs/PROTOCOL.md](docs/PROTOCOL.md) — as mensagens trocadas entre os apps
-- [CHANGELOG.md](CHANGELOG.md) — o que mudou em cada versão
-
-```powershell
-.\scripts\build.ps1         # gera dist\familiashare.exe
-go test ./...               # testes automáticos
-```
+Veja o [CONTRIBUTING.md](CONTRIBUTING.md) para compilar e testar, e a pasta
+[docs](docs) para saber como o app funciona por dentro. O que mudou em cada versão está
+no [CHANGELOG.md](CHANGELOG.md).
 
 ## Licença
 
-O código do familiashare está sob a licença [MIT](LICENSE). O executável inclui o
-[FFmpeg](https://ffmpeg.org) (LGPL v3) e outras bibliotecas de código aberto — veja
+O código do familiashare está sob a licença [MIT](LICENSE). O app inclui o
+[FFmpeg](https://ffmpeg.org) e outras bibliotecas de código aberto; veja
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

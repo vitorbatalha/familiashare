@@ -9,8 +9,7 @@
 # Recurso de ícone do Windows (gerado a partir de assets/icon.png pelo build)
 *.syso
 
-# Interface: dependências e saída do build
-node_modules/
+# Saída do build e identidades de teste (dist/test tem códigos de amigo e logs)
 dist/
 
 # Editores / sistema
