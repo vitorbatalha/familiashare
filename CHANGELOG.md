@@ -8,6 +8,13 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.6.1] — 2026-11-16
+
+### Alterado
+- Tema roxo agora é bem mais roxo.
+- Os botões principais não têm mais a borda clara nos temas.
+- O aviso de código inválido some sozinho depois de alguns segundos ou ao trocar de aba.
+
 ## [0.6.0] — 2026-11-16
 
 ### Adicionado
