@@ -33,7 +33,7 @@ O log fica em `%LOCALAPPDATA%\familiashare\familiashare.log` (Configurações �
 Abrir pasta dos logs) e, se o app fechar sozinho, o motivo vai para `crash.log` na mesma
 pasta. O log persiste entre aberturas, gira em 512 KB (`familiashare.anterior.log`) e
 passa por um filtro que tira dados pessoais — mesmo assim, **não registre nomes, códigos
-de amigo nem endereços** (ver [`internal/applog`](internal/applog/applog.go)). Na
+de amigo, chaves nem endereços** (ver [`internal/applog`](internal/applog/applog.go)). Na
 transmissão, quem assiste aparece como "espectador 1", "espectador 2"…
 
 Fechar a janela deixa o app perto do relógio (padrão); para encerrar de verdade durante

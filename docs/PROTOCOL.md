@@ -22,6 +22,55 @@ do projeto e **não pode mudar** sem quebrar a comunicação com versões anteri
 Se o servidor responder `ID-TAKEN` (o mesmo código já está conectado, ex.: o app aberto
 duas vezes), o app avisa e tenta de novo.
 
+### Assinatura (depois da 0.6.1)
+
+O servidor entrega o ID `telau-<código>` a **quem conectar primeiro**, sem pedir prova de
+nada. Com a pessoa offline, qualquer um que saiba o código dela pode se conectar com ele.
+(Com ela online, o servidor responde `ID-TAKEN`, e o `src` das mensagens é sempre
+preenchido pelo servidor, não por quem envia.) Para quem recebe saber que a mensagem é
+mesmo daquela pessoa, cada instalação tem um par de chaves **Ed25519**, gerado na primeira
+execução. A chave privada fica no `config.json` (`key`) e nunca vai para a página nem
+para o log.
+
+Toda mensagem enviada leva, no payload:
+
+| Campo | Significado |
+|---|---|
+| `k` | chave pública de quem envia (base64, 32 bytes) |
+| `s` | assinatura Ed25519 (base64) dos dados abaixo |
+
+O servidor (Node.js) relê e reescreve o JSON, mudando a ordem dos campos e os escapes. Por
+isso a assinatura não cobre os bytes recebidos. Ela cobre uma forma canônica, refeita por
+quem recebe (`signedData` em [signaling.go](../internal/signaling/signaling.go)):
+
+```
+"familiashare-assinatura-v1\n" + JSON{Kind, Src, Dst, Conn, T, D, Cand, SDP}
+```
+
+Os campos são o tipo (`OFFER`…), os códigos de quem envia e de quem recebe (sem prefixo),
+o `connectionId`, o `t`, o `d` e o `candidate` relidos e reescritos pelo Go (chaves em
+ordem), e o `sdp`. Como o destino está incluído, quem recebe uma mensagem assinada não
+consegue reaproveitá-la com outra pessoa.
+
+Quem recebe:
+
+- `k`/`s` presentes e a assinatura não confere → descarta a mensagem.
+- Guarda a **primeira chave** vista para cada código (*trust on first use*, como o SSH): a
+  de amigos fica no `config.json` (`friends[].key`), a dos outros fica só em memória.
+  Daí em diante, mensagem com aquele código só vale se vier assinada pela mesma chave. Se
+  não vier, o app ignora a mensagem e avisa "Alguém tentou se passar por Fulano".
+- Mensagem sem `k`/`s` (versões até a 0.6.1) continua valendo enquanto não houver
+  chave guardada para aquele código.
+- Desfazer a amizade apaga a chave guardada. Se um amigo perder o `config.json` e
+  gerar chave nova, basta desfazer e refazer a amizade.
+
+`EXPIRE` vem do próprio servidor e não é assinado.
+
+**Limites.** Quem pega o código de alguém offline ainda impede essa pessoa de se conectar
+(`ID-TAKEN`) e recebe as mensagens destinadas a ela, como o `ping` dos amigos. Também
+vale o *trust on first use*: se o impostor falar com um amigo antes do dono do código,
+depois que os dois atualizaram, é a chave dele que fica guardada.
+
 ## Envelope
 
 O servidor público **derruba a conexão** de quem envia algo diferente do que o cliente

@@ -7,7 +7,9 @@
 package signaling
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,6 +58,8 @@ type Payload struct {
 	ConnectionID string                   `json:"connectionId"`
 	T            string                   `json:"t,omitempty"` // tipo da nossa mensagem (ping, join, room...)
 	D            json.RawMessage          `json:"d,omitempty"` // dados da nossa mensagem
+	K            string                   `json:"k,omitempty"` // chave pública de quem enviou (base64)
+	S            string                   `json:"s,omitempty"` // assinatura da mensagem (ver signedData)
 }
 
 const emptySDP = "v=0\r\n"
@@ -65,6 +69,77 @@ type Message struct {
 	Kind string // OFFER | ANSWER | CANDIDATE | EXPIRE (EXPIRE = o destino estava offline)
 	Src  string
 	P    Payload
+	// Key é a chave pública que assinou a mensagem (base64), já conferida. Vazia quando a
+	// mensagem veio sem assinatura (versões até a 0.6.1). Quem decide se a chave é
+	// mesmo a de Src é o social, que guarda a chave de cada amigo.
+	Key string
+}
+
+/* ---------- Assinatura ---------- */
+
+// O servidor PeerJS entrega a mensagem ao dono do ID de destino, mas qualquer um pode
+// pegar o ID de quem está offline. A assinatura prova que a mensagem veio de quem tem a
+// chave privada daquele código.
+//
+// O servidor (Node.js) relê e reescreve o JSON, então a assinatura não pode depender
+// dos bytes exatos: assina-se uma forma canônica (signedData), refeita por quem recebe.
+
+const sigContext = "familiashare-assinatura-v1\n"
+
+// canon devolve o JSON em forma canônica (chaves em ordem, mesmos escapes), para os dois
+// lados chegarem aos mesmos bytes mesmo que o servidor tenha reescrito o JSON.
+func canon(raw []byte) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	var v any
+	if json.Unmarshal(raw, &v) != nil {
+		return string(raw)
+	}
+	return v
+}
+
+// signedData é o que a assinatura cobre: tipo, de quem, para quem e o conteúdo. Incluir
+// o destino impede reaproveitar uma mensagem assinada recebida para mandar a outra pessoa.
+func signedData(kind, src, dst string, p Payload) []byte {
+	var cand []byte
+	if p.Candidate != nil {
+		cand, _ = json.Marshal(p.Candidate)
+	}
+	b, _ := json.Marshal(struct {
+		Kind, Src, Dst, Conn, T string
+		D, Cand                 any
+		SDP                     *SDP
+	}{kind, src, dst, p.ConnectionID, p.T, canon(p.D), canon(cand), p.SDP})
+	return append([]byte(sigContext), b...)
+}
+
+// sign preenche K e S do payload.
+func sign(key ed25519.PrivateKey, kind, src, dst string, p *Payload) {
+	if key == nil {
+		return
+	}
+	p.K, p.S = "", ""
+	p.S = base64.StdEncoding.EncodeToString(ed25519.Sign(key, signedData(kind, src, dst, *p)))
+	p.K = base64.StdEncoding.EncodeToString(key.Public().(ed25519.PublicKey))
+}
+
+// verify confere a assinatura de uma mensagem recebida. Devolve a chave que assinou
+// ("" se a mensagem não veio assinada) e se a mensagem pode ser usada: assinatura
+// presente e errada = descartar.
+func verify(kind, src, dst string, p Payload) (key string, ok bool) {
+	if p.K == "" && p.S == "" {
+		return "", true
+	}
+	pub, err := base64.StdEncoding.DecodeString(p.K)
+	sig, err2 := base64.StdEncoding.DecodeString(p.S)
+	if err != nil || err2 != nil || len(pub) != ed25519.PublicKeySize {
+		return "", false
+	}
+	if !ed25519.Verify(pub, signedData(kind, src, dst, p), sig) {
+		return "", false
+	}
+	return p.K, true
 }
 
 /* ---------- Uma conexão WebSocket com o servidor ---------- */
@@ -160,6 +235,7 @@ func (c *conn) close() {
 // Node é a presença desta pessoa no servidor. Reconecta sozinho se a conexão cair.
 type Node struct {
 	me     string
+	key    ed25519.PrivateKey // assina tudo que sai (nil = sem assinatura)
 	onMsg  func(Message)
 	onOpen func()
 	mu     sync.Mutex
@@ -167,10 +243,10 @@ type Node struct {
 	status string
 }
 
-// Start conecta com o código de amigo me. onMsg recebe as mensagens em ordem
-// (numa única goroutine); onOpen é chamado a cada (re)conexão.
-func Start(me string, onMsg func(Message), onOpen func()) *Node {
-	n := &Node{me: me, onMsg: onMsg, onOpen: onOpen, status: "conectando…"}
+// Start conecta com o código de amigo me, assinando as mensagens com key. onMsg recebe
+// as mensagens em ordem (numa única goroutine); onOpen é chamado a cada (re)conexão.
+func Start(me string, key ed25519.PrivateKey, onMsg func(Message), onOpen func()) *Node {
+	n := &Node{me: me, key: key, onMsg: onMsg, onOpen: onOpen, status: "conectando…"}
 	go n.loop()
 	return n
 }
@@ -226,15 +302,25 @@ func (n *Node) dispatch(m wireMsg) {
 	if len(m.Payload) > 0 {
 		json.Unmarshal(m.Payload, &in.P)
 	}
+	if in.Kind != "EXPIRE" { // EXPIRE vem do próprio servidor
+		key, ok := verify(in.Kind, in.Src, n.me, in.P)
+		if !ok {
+			log.Printf("sinalização: mensagem %s com assinatura inválida descartada", in.Kind)
+			return
+		}
+		in.Key = key
+	}
 	n.onMsg(in)
 }
 
-// build monta o envelope no formato que o servidor PeerJS aceita (ver PROTOCOL.md).
-func build(me, kind, dst string, p Payload) wireMsg {
+// build monta o envelope no formato que o servidor PeerJS aceita (ver PROTOCOL.md),
+// assinado com key.
+func build(me string, key ed25519.PrivateKey, kind, dst string, p Payload) wireMsg {
 	p.Type = "media"
 	if p.ConnectionID == "" {
 		p.ConnectionID = "mc_" + me
 	}
+	sign(key, kind, me, dst, &p)
 	b, _ := json.Marshal(p)
 	return wireMsg{Type: kind, Dst: Prefix + dst, Payload: b}
 }
@@ -246,7 +332,7 @@ func (n *Node) send(kind, dst string, p Payload) error {
 	if c == nil {
 		return errors.New("sem conexão")
 	}
-	return c.write(build(n.me, kind, dst, p))
+	return c.write(build(n.me, n.key, kind, dst, p))
 }
 
 // controlPayload é uma mensagem de controle: t (tipo) e d (dados opcionais).

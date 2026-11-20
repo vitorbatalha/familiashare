@@ -110,18 +110,21 @@ type Service struct {
 	joinAt   time.Time
 	asking   bool // o dono recebeu o pedido e ainda não respondeu (join-wait)
 	notices  []string
+	keys     map[string]string // primeira chave vista de cada código, enquanto o app está aberto (a de amigos também vai para o config)
+	warned   map[string]bool   // já avisou que alguém tentou usar este código
 }
 
 // New cria o Service. Depois, conecte a sinalização e chame Run:
 //
 //	svc := social.New(cfg, save, host, toUI)
-//	node := signaling.Start(cfg.MyCode, svc.OnMessage, svc.OnConnected)
+//	node := signaling.Start(cfg.MyCode, cfg.PrivateKey(), svc.OnMessage, svc.OnConnected)
 //	svc.Run(node)
 func New(cfg config.Config, save func(config.Config), host Streamer, toUI func(map[string]any)) *Service {
 	return &Service{
 		cfg: cfg, save: save, host: host, toUI: toUI, ready: make(chan struct{}),
 		lastSeen: map[string]time.Time{}, friendAt: map[string]*RoomInfo{},
 		requests: map[string]string{}, invites: map[string]string{},
+		keys: map[string]string{}, warned: map[string]bool{},
 	}
 }
 
@@ -273,6 +276,11 @@ func (a *Service) OnMessage(m signaling.Message) {
 		}
 		a.toUI(map[string]any{"kind": "gone", "src": src})
 		return
+	}
+	if !a.checkKey(src, m.Key) {
+		return
+	}
+	switch m.Kind {
 	case "ANSWER":
 		if m.P.SDP != nil && a.canWatchMe(src) {
 			a.host.HandleAnswer(src, m.P.SDP.SDP)
@@ -317,6 +325,43 @@ func (a *Service) OnMessage(m signaling.Message) {
 	default:
 		a.onControl(src, m.P.T, m.P.D)
 	}
+}
+
+// checkKey decide se uma mensagem que diz vir de src pode ser usada.
+//
+// O servidor entrega o ID de qualquer pessoa a quem conectar primeiro, então alguém pode
+// usar o código de um amigo enquanto ele está offline. A primeira chave vista para um
+// código fica guardada (a de amigos, no config); dali em diante só valem mensagens
+// assinadas por ela. Quem ainda não assina (até a 0.6.1) continua funcionando até a
+// primeira mensagem assinada.
+func (a *Service) checkKey(src, key string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	known := a.keys[src]
+	fi := slices.IndexFunc(a.cfg.Friends, func(f config.Friend) bool { return f.Code == src })
+	if fi >= 0 && a.cfg.Friends[fi].Key != "" {
+		known = a.cfg.Friends[fi].Key
+	}
+	switch {
+	case known != "" && key != known:
+		log.Printf("social: mensagem recusada: chave diferente da guardada para o código (assinada: %v)", key != "")
+		if !a.warned[src] {
+			a.warned[src] = true
+			who := "um código desconhecido"
+			if fi >= 0 {
+				who = a.cfg.Friends[fi].Name
+			}
+			a.notice("Alguém tentou se passar por " + who + ". As mensagens foram ignoradas.")
+		}
+		return false
+	case known == "" && key != "":
+		a.keys[src] = key
+		if fi >= 0 {
+			a.cfg.Friends[fi].Key = key
+			a.persist()
+		}
+	}
+	return true
 }
 
 func (a *Service) canWatchMe(src string) bool {
@@ -493,7 +538,7 @@ func (a *Service) addFriendLocked(code, name string) {
 	a.cfg.Pending = slices.DeleteFunc(a.cfg.Pending, func(c string) bool { return c == code })
 	delete(a.requests, code)
 	if !a.isFriend(code) {
-		a.cfg.Friends = append(a.cfg.Friends, config.Friend{Code: code, Name: name})
+		a.cfg.Friends = append(a.cfg.Friends, config.Friend{Code: code, Name: name, Key: a.keys[code]})
 	}
 	a.renameFriendLocked(code, name)
 	a.lastSeen[code] = time.Now()
@@ -518,6 +563,8 @@ func (a *Service) removeFriendLocked(code string) {
 	delete(a.lastSeen, code)
 	delete(a.friendAt, code)
 	delete(a.invites, code)
+	delete(a.keys, code) // adicionar de novo aceita a chave nova (ex.: o amigo perdeu a config)
+	delete(a.warned, code)
 	a.persist()
 }
 
@@ -1031,6 +1078,11 @@ func (a *Service) State() State {
 		Joining: a.joining, Host: hostStats, Notices: a.notices, Names: map[string]string{}, Config: a.cfg,
 		Friends: []friendView{}, Requests: []config.Friend{}, Invites: []config.Friend{}, Invited: []string{},
 		Asking: a.asking, Asks: []config.Friend{}}
+	s.Config.Key = "" // a chave privada nunca vai para a página
+	// cópias: a página lê o State fora do lock, enquanto mensagens podem mudar a config
+	s.Config.Friends = slices.Clone(a.cfg.Friends)
+	s.Config.Pending = slices.Clone(a.cfg.Pending)
+	s.Config.Exclude = slices.Clone(a.cfg.Exclude)
 	if a.net != nil {
 		s.Net = a.net.Status()
 	}

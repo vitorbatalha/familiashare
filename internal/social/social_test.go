@@ -4,6 +4,8 @@ package social
 // de sinalização" falso, em memória. Cobre amizade e salas sem rede nem janelas.
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -40,6 +42,13 @@ func (b *bus) connect(code string, svc *Service) *endpoint {
 	return &endpoint{bus: b, me: code}
 }
 
+// disconnect tira code do servidor (a pessoa fechou o app).
+func (b *bus) disconnect(code string) {
+	b.mu.Lock()
+	delete(b.peers, code)
+	b.mu.Unlock()
+}
+
 func (b *bus) deliver(from, to string, m signaling.Message) {
 	b.mu.Lock()
 	ch, ok := b.peers[to]
@@ -55,10 +64,18 @@ func (b *bus) deliver(from, to string, m signaling.Message) {
 	ch <- m
 }
 
-// endpoint implementa Net para um participante.
+// endpoint implementa Net para um participante. key é a chave pública com que as
+// mensagens dele chegam assinadas ("" = versão antiga, sem assinatura); a assinatura em
+// si é testada no pacote signaling.
 type endpoint struct {
 	bus *bus
 	me  string
+	key string
+}
+
+func (e *endpoint) deliver(dst string, m signaling.Message) {
+	m.Key = e.key
+	e.bus.deliver(e.me, dst, m)
 }
 
 func (e *endpoint) Me() string     { return e.me }
@@ -68,19 +85,19 @@ func (e *endpoint) Send(dst, t string, d any) error {
 	if d != nil {
 		p.D, _ = json.Marshal(d)
 	}
-	e.bus.deliver(e.me, dst, signaling.Message{Kind: "OFFER", P: p})
+	e.deliver(dst, signaling.Message{Kind: "OFFER", P: p})
 	return nil
 }
 func (e *endpoint) SendOffer(dst, sdp string) error {
-	e.bus.deliver(e.me, dst, signaling.Message{Kind: "OFFER", P: signaling.Payload{T: "offer", SDP: &signaling.SDP{Type: "offer", SDP: sdp}}})
+	e.deliver(dst, signaling.Message{Kind: "OFFER", P: signaling.Payload{T: "offer", SDP: &signaling.SDP{Type: "offer", SDP: sdp}}})
 	return nil
 }
 func (e *endpoint) SendAnswer(dst, sdp string) error {
-	e.bus.deliver(e.me, dst, signaling.Message{Kind: "ANSWER", P: signaling.Payload{SDP: &signaling.SDP{Type: "answer", SDP: sdp}}})
+	e.deliver(dst, signaling.Message{Kind: "ANSWER", P: signaling.Payload{SDP: &signaling.SDP{Type: "answer", SDP: sdp}}})
 	return nil
 }
 func (e *endpoint) SendCandidate(dst, owner string, c webrtc.ICECandidateInit) error {
-	e.bus.deliver(e.me, dst, signaling.Message{Kind: "CANDIDATE", P: signaling.Payload{Candidate: &c, ConnectionID: "mc_" + owner}})
+	e.deliver(dst, signaling.Message{Kind: "CANDIDATE", P: signaling.Payload{Candidate: &c, ConnectionID: "mc_" + owner}})
 	return nil
 }
 
@@ -142,11 +159,28 @@ func (u *uiEvents) count(kind, src string) int {
 func join(b *bus, name, code string) *person {
 	cfg := config.Config{Name: name, MyCode: code}
 	cfg.Normalize()
+	return joinWith(b, cfg, pubKey(cfg))
+}
+
+// joinOld entra como uma versão até a 0.6.1, que não assina as mensagens.
+func joinOld(b *bus, name, code string) *person {
+	cfg := config.Config{Name: name, MyCode: code}
+	cfg.Normalize()
+	return joinWith(b, cfg, "")
+}
+
+func joinWith(b *bus, cfg config.Config, key string) *person {
 	h := &fakeHost{}
 	ui := &uiEvents{}
 	svc := New(cfg, func(config.Config) {}, h, ui.add)
-	svc.Run(b.connect(code, svc))
-	return &person{svc, code, h, ui}
+	e := b.connect(cfg.MyCode, svc)
+	e.key = key
+	svc.Run(e)
+	return &person{svc, cfg.MyCode, h, ui}
+}
+
+func pubKey(c config.Config) string {
+	return base64.StdEncoding.EncodeToString(c.PrivateKey().Public().(ed25519.PublicKey))
 }
 
 // eventually espera a condição ficar verdadeira (as mensagens são assíncronas).
@@ -167,9 +201,15 @@ func befriend(t *testing.T, a, b *person) {
 	}
 	eventually(t, b.code+" recebe o pedido", func() bool { return len(b.State().Requests) == 1 })
 	b.AnswerRequest(a.code, true)
-	eventually(t, "amizade dos dois lados", func() bool {
-		return len(a.State().Friends) == 1 && len(b.State().Friends) == 1
-	})
+	isFriend := func(p *person, code string) bool {
+		for _, f := range p.State().Friends {
+			if f.Code == code {
+				return true
+			}
+		}
+		return false
+	}
+	eventually(t, "amizade dos dois lados", func() bool { return isFriend(a, b.code) && isFriend(b, a.code) })
 }
 
 func roomMembers(p *person) int {
@@ -416,6 +456,130 @@ func TestSelfViewStaysLocal(t *testing.T) {
 	}
 	v.SendOffer(beto.code, "sdp-beto") // para os outros continua indo pela rede
 	eventually(t, "Beto recebe a oferta", func() bool { return beto.ui.count("offer", ana.code) == 1 })
+}
+
+/* ---------- identidade (chave de cada amigo) ---------- */
+
+func friendKey(p *person, code string) string {
+	for _, f := range p.State().Config.Friends {
+		if f.Code == code {
+			return f.Key
+		}
+	}
+	return ""
+}
+
+func hasNotice(p *person, part string) func() bool {
+	var seen []string
+	return func() bool {
+		seen = append(seen, p.State().Notices...)
+		for _, n := range seen {
+			if strings.Contains(n, part) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func TestFriendKeysArePinned(t *testing.T) {
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")
+	befriend(t, ana, beto)
+	eventually(t, "os dois guardam a chave um do outro", func() bool {
+		return friendKey(ana, beto.code) == pubKey(beto.cfg) && friendKey(beto, ana.code) == pubKey(ana.cfg)
+	})
+}
+
+func TestImpostorWithFriendCodeIsIgnored(t *testing.T) {
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")
+	befriend(t, ana, beto)
+	eventually(t, "Ana guarda a chave do Beto", func() bool { return friendKey(ana, beto.code) != "" })
+	ana.CreateRoom(true)
+
+	// Beto fecha o app; alguém pega o código dele no servidor, com outra chave
+	b.disconnect(beto.code)
+	fake := config.Config{Name: "Beto", MyCode: beto.code}
+	fake.Normalize()
+	impostor := joinWith(b, fake, pubKey(fake))
+
+	impostor.Join(ana.code)                    // sala pública: amigo entra direto
+	impostor.net.Send(ana.code, "fr-del", nil) // e tenta desfazer a amizade
+	impostor.net.Send(ana.code, "watch", nil)
+	eventually(t, "Ana é avisada", hasNotice(ana, "se passar por Beto"))
+	time.Sleep(50 * time.Millisecond)
+	if roomMembers(ana) != 1 {
+		t.Error("o impostor não pode entrar na sala da Ana")
+	}
+	if len(ana.State().Friends) != 1 {
+		t.Error("o impostor não pode desfazer a amizade")
+	}
+	if len(ana.host.watched) != 0 {
+		t.Error("o impostor não pode assistir")
+	}
+
+	// o Beto de verdade volta e tudo funciona
+	b.disconnect(beto.code)
+	beto2 := joinWith(b, beto.cfg, pubKey(beto.cfg))
+	beto2.Join(ana.code)
+	eventually(t, "Beto de verdade entra na sala", func() bool { return roomMembers(ana) == 2 })
+}
+
+func TestOldVersionFriendWorksUntilItSigns(t *testing.T) {
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), joinOld(b, "Beto", "betoooo2")
+	befriend(t, ana, beto) // Beto ainda está na 0.6.1
+	if friendKey(ana, beto.code) != "" {
+		t.Fatal("sem assinatura, não há chave para guardar")
+	}
+	ana.CreateRoom(true)
+	beto.Join(ana.code)
+	eventually(t, "amigo em versão antiga continua entrando", func() bool { return roomMembers(ana) == 2 && roomMembers(beto) == 2 })
+	beto.Leave()
+	eventually(t, "Beto sai", func() bool { return roomMembers(ana) == 1 })
+
+	// Beto atualiza: a primeira mensagem assinada fixa a chave
+	b.disconnect(beto.code)
+	beto2 := joinWith(b, beto.cfg, pubKey(beto.cfg))
+	beto2.pingAll()
+	eventually(t, "Ana guarda a chave nova", func() bool { return friendKey(ana, beto.code) == pubKey(beto.cfg) })
+
+	// depois disso, mensagem sem assinatura com o código do Beto não vale mais
+	b.disconnect(beto.code)
+	old := joinWith(b, beto.cfg, "")
+	old.Join(ana.code)
+	eventually(t, "Ana é avisada", hasNotice(ana, "se passar por Beto"))
+	if roomMembers(ana) != 1 {
+		t.Error("depois de guardar a chave, mensagem sem assinatura é recusada")
+	}
+}
+
+func TestReAddingFriendAcceptsNewKey(t *testing.T) {
+	// o amigo perdeu a config e gerou chave nova: desfazer e refazer a amizade resolve
+	b := newBus()
+	ana, beto := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2")
+	befriend(t, ana, beto)
+	eventually(t, "chave guardada", func() bool { return friendKey(ana, beto.code) != "" })
+	ana.RemoveFriend(beto.code)
+	eventually(t, "amizade desfeita", func() bool { return len(ana.State().Friends) == 0 })
+
+	b.disconnect(beto.code)
+	nova := config.Config{Name: "Beto", MyCode: beto.code}
+	nova.Normalize()
+	beto2 := joinWith(b, nova, pubKey(nova))
+	befriend(t, ana, beto2)
+	eventually(t, "chave nova guardada", func() bool { return friendKey(ana, beto.code) == pubKey(nova) })
+}
+
+func TestPrivateKeyNeverReachesThePage(t *testing.T) {
+	ana := join(newBus(), "Ana", "anaaaaaa")
+	if ana.cfg.Key == "" {
+		t.Fatal("a config deveria ter chave")
+	}
+	if k := ana.State().Config.Key; k != "" {
+		t.Errorf("State (vai para a página) não pode levar a chave privada: %q", k)
+	}
 }
 
 func TestVolumeIsSavedAndSafeToReadConcurrently(t *testing.T) {

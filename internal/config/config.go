@@ -3,7 +3,9 @@
 package config
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -14,12 +16,16 @@ import (
 type Friend struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
+	// Key é a chave pública do amigo, guardada na primeira mensagem assinada que chegou
+	// dele. Depois disso, mensagens com o código dele só valem se vierem assinadas por ela.
+	Key string `json:"key,omitempty"`
 }
 
 type Config struct {
 	V          int      `json:"v"`
 	Name       string   `json:"name"`
 	MyCode     string   `json:"myCode"` // código de amigo (identidade permanente)
+	Key        string   `json:"key"`    // chave privada Ed25519 (semente, base64): prova que o código é meu; nunca vai para a página nem para o log
 	Friends    []Friend `json:"friends"`
 	Pending    []string `json:"pending"` // pedidos de amizade enviados, ainda não aceitos
 	RoomPublic bool     `json:"roomPublic"`
@@ -72,6 +78,14 @@ func (c *Config) Normalize() {
 	if c.MyCode == "" {
 		c.MyCode = NewCode()
 	}
+	if c.PrivateKey() == nil {
+		c.Key = NewKey()
+	}
+	for i, f := range c.Friends {
+		if _, ok := ParsePublicKey(f.Key); !ok {
+			c.Friends[i].Key = ""
+		}
+	}
 	for code, v := range c.Volumes { // 100% é o padrão: não precisa ocupar espaço no arquivo
 		if code != NormCode(code) || code == "" || v < 0 || v >= 100 {
 			delete(c.Volumes, code)
@@ -106,6 +120,30 @@ func Load(dir string) Config {
 func Save(dir string, c Config) error {
 	b, _ := json.MarshalIndent(c, "", "  ")
 	return os.WriteFile(Path(dir), b, 0o644)
+}
+
+// NewKey gera uma chave privada nova (semente Ed25519 em base64).
+func NewKey() string {
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	return base64.StdEncoding.EncodeToString(priv.Seed())
+}
+
+// PrivateKey é a chave que assina as mensagens desta pessoa (nil se Key for inválida).
+func (c Config) PrivateKey() ed25519.PrivateKey {
+	seed, err := base64.StdEncoding.DecodeString(c.Key)
+	if err != nil || len(seed) != ed25519.SeedSize {
+		return nil
+	}
+	return ed25519.NewKeyFromSeed(seed)
+}
+
+// ParsePublicKey lê uma chave pública em base64.
+func ParsePublicKey(s string) (ed25519.PublicKey, bool) {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil || len(b) != ed25519.PublicKeySize {
+		return nil, false
+	}
+	return ed25519.PublicKey(b), true
 }
 
 // MaxVolumes limita quantas pessoas têm volume guardado (o arquivo não cresce sem fim

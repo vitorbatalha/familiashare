@@ -132,7 +132,7 @@ func main() {
 	}
 	save := func(c config.Config) { config.Save(dataDir, c) }
 	svc := social.New(cfg, save, stream.New(), toUI)
-	svc.Run(signaling.Start(cfg.MyCode, svc.OnMessage, svc.OnConnected))
+	svc.Run(signaling.Start(cfg.MyCode, cfg.PrivateKey(), svc.OnMessage, svc.OnConnected))
 	upd := update.New(func() { w.Dispatch(w.Terminate) })
 
 	// botão de fechar: bandeja (padrão), minimizar ou sair (Configurações → Geral)
