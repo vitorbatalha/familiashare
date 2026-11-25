@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -34,7 +33,13 @@ type Config struct {
 	OnClose       string `json:"onClose"`       // botão de fechar: tray | minimize | quit
 	TrayHintSeen  bool   `json:"trayHintSeen"`  // já avisou que o app continua perto do relógio
 	ShareHintSeen bool   `json:"shareHintSeen"` // já deu a dica de silenciar apps (eco) ao transmitir
-	Theme         string `json:"theme"`         // cores do app (ver Themes)
+	Theme         string `json:"theme"`         // cores do app (ver Themes e MyThemes)
+
+	// aparência (ver themes.go)
+	MyThemes []CustomTheme         `json:"myThemes,omitempty"`    // temas criados pela pessoa
+	Images   map[string]ThemeImage `json:"themeImages,omitempty"` // tema criado → imagem de fundo
+	Avatar   string                `json:"avatar,omitempty"`      // hash da foto de perfil ("" = sem foto)
+	NewsSeen string                `json:"newsSeen,omitempty"`    // última versão cujas novidades já foram mostradas
 
 	// volume escolhido para a tela de cada pessoa, em % (código → 0..99; 100 não é guardado)
 	Volumes map[string]int `json:"volumes,omitempty"`
@@ -72,9 +77,7 @@ func (c *Config) Normalize() {
 	if c.OnClose != "minimize" && c.OnClose != "quit" {
 		c.OnClose = "tray"
 	}
-	if !slices.Contains(Themes, c.Theme) {
-		c.Theme = Themes[0]
-	}
+	c.normalizeLook()
 	if c.MyCode == "" {
 		c.MyCode = NewCode()
 	}

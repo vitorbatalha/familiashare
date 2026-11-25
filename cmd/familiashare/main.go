@@ -35,6 +35,7 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/capture"
 	"github.com/vitorbatalha/familiashare/internal/config"
 	"github.com/vitorbatalha/familiashare/internal/ffmpeg"
+	"github.com/vitorbatalha/familiashare/internal/media"
 	"github.com/vitorbatalha/familiashare/internal/signaling"
 	"github.com/vitorbatalha/familiashare/internal/social"
 	"github.com/vitorbatalha/familiashare/internal/stream"
@@ -93,7 +94,11 @@ func main() {
 		winapi.MessageBox(appName, "Erro ao iniciar: "+err.Error())
 		return
 	}
-	go http.Serve(ln, http.FileServer(http.FS(fs.FS(ui.Files))))
+	images := media.Open(dataDir) // imagens dos temas e fotos de perfil (servidas em /u/)
+	mux := http.NewServeMux()
+	mux.Handle("/u/", images.Handler())
+	mux.Handle("/", http.FileServer(http.FS(fs.FS(ui.Files))))
+	go http.Serve(ln, mux)
 
 	// o som de quem assiste começa sem precisar clicar em "ativar som"
 	// e a câmera liga sem o navegador perguntar a cada abertura (a página é do próprio
@@ -132,6 +137,7 @@ func main() {
 	}
 	save := func(c config.Config) { config.Save(dataDir, c) }
 	svc := social.New(cfg, save, stream.New(), toUI)
+	svc.SetAvatars(images)
 	svc.Run(signaling.Start(cfg.MyCode, cfg.PrivateKey(), svc.OnMessage, svc.OnConnected))
 	upd := update.New(func() { w.Dispatch(w.Terminate) })
 
@@ -148,7 +154,7 @@ func main() {
 		w.Terminate)
 	tray.OnActivate = upd.CheckSoon // janela de volta: vê se saiu versão nova
 
-	bind(w, svc, upd, frame, tray.Notify, dataDir)
+	bind(w, svc, upd, frame, tray.Notify, dataDir, images)
 	w.Navigate("http://" + ln.Addr().String() + "/")
 	w.Run()
 	tray.Remove()

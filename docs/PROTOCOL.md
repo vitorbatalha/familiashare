@@ -108,7 +108,8 @@ Outras regras do servidor:
 
 ## Mensagens de controle (`payload.t`)
 
-`hello` = `{ "name": string, "room"?: RoomInfo }`.
+`hello` = `{ "name": string, "room"?: RoomInfo, "av"?: string }`. O `av` (depois da 0.6.1) é o hash da
+foto de perfil de quem envia (ver [Fotos de perfil](#fotos-de-perfil-depois-da-061)); ausente = sem foto.
 
 ### Amizade e presença
 
@@ -137,8 +138,24 @@ A sala é coordenada pelo **dono**: ele mantém a lista de membros e a envia a t
 | `share` | `{ "on": bool }` | membro → dono | Começou/parou de transmitir. |
 | `cam` | `{ "on": bool }` | membro → dono | (0.4.0) Ligou/desligou a câmera. Dono em versão antiga ignora; o app desliga a câmera se, depois de **8 s**, a sala não mostrar `camera` para ele. |
 
-`Room` = `{ "owner", "ownerName", "public", "members": [{ "code", "name", "streaming", "camera"? }] }`
-(`camera` desde a 0.4.0, omitido quando falso).
+`Room` = `{ "owner", "ownerName", "public", "members": [{ "code", "name", "streaming", "camera"?, "av"? }] }`
+(`camera` desde a 0.4.0, omitido quando falso; `av`, o hash da foto de cada membro, depois da 0.6.1).
+
+### Fotos de perfil (depois da 0.6.1)
+
+A foto é um JPEG de no máximo 256×256 e 24 KB (a página manda 128×128, uns 2 a 8 KB).
+Ela é identificada pelo **hash**: os 16 primeiros hexadecimais do SHA-256 dos bytes. Quem
+tem foto anuncia o hash no `av` do hello (`ping`, `pong`, `fr-req`, `fr-acc`, `invite`,
+`join`) e o dono repete o de cada membro no `room`. Quem ainda não tem aquela foto pede:
+
+| `t` | `d` | Significado |
+|---|---|---|
+| `av-get` | `{ "h": hash }` | Pede a foto anunciada. Só é respondido para amigos ou membros da mesma sala, se `h` for a foto atual, e no máximo uma vez a cada **10 s** por pessoa e foto. |
+| `av` | `{ "h": hash, "d": base64 }` | A foto. Só é aceita se foi pedida nos últimos **2 min**, se o SHA-256 confere com `h` e se é um JPEG dentro dos limites. |
+
+Hello de um amigo sem `av` apaga a foto guardada dele (ele tirou a foto). O `av` vazio
+num membro do `room` não apaga nada, porque o dono pode estar numa versão antiga. Cada
+app guarda as fotos recebidas em `avatars\<código>-<hash>.jpg` na pasta de dados.
 
 ### Transmissão
 

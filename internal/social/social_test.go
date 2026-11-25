@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/pion/webrtc/v4"
 	"github.com/vitorbatalha/familiashare/internal/config"
+	"github.com/vitorbatalha/familiashare/internal/media"
 	"github.com/vitorbatalha/familiashare/internal/signaling"
 	"github.com/vitorbatalha/familiashare/internal/stream"
 )
@@ -129,6 +131,7 @@ type person struct {
 	code string
 	host *fakeHost
 	ui   *uiEvents
+	av   *fakeAvatars
 }
 
 // uiEvents guarda o que o Service mandou para a página (toUI).
@@ -173,10 +176,12 @@ func joinWith(b *bus, cfg config.Config, key string) *person {
 	h := &fakeHost{}
 	ui := &uiEvents{}
 	svc := New(cfg, func(config.Config) {}, h, ui.add)
+	av := &fakeAvatars{mine: map[string][]byte{}, got: map[string]string{}}
+	svc.SetAvatars(av)
 	e := b.connect(cfg.MyCode, svc)
 	e.key = key
 	svc.Run(e)
-	return &person{svc, cfg.MyCode, h, ui}
+	return &person{svc, cfg.MyCode, h, ui, av}
 }
 
 func pubKey(c config.Config) string {
@@ -614,5 +619,106 @@ func TestVolumeIsSavedAndSafeToReadConcurrently(t *testing.T) {
 	defer mu.Unlock()
 	if saved.Volumes["betoooo2"] != 40 {
 		t.Errorf("volume deveria ir para o config salvo: %v", saved.Volumes)
+	}
+}
+
+/* ---------- fotos de perfil ---------- */
+
+// fakeAvatars guarda as fotos em memória (o real é o internal/media).
+type fakeAvatars struct {
+	mu   sync.Mutex
+	mine map[string][]byte // hash → minha foto
+	got  map[string]string // código → hash da foto recebida
+}
+
+func (f *fakeAvatars) AvatarHash(code string) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.got[code]
+}
+func (f *fakeAvatars) SaveAvatar(code, hash string, b []byte) error {
+	if media.Hash(b) != hash {
+		return fmt.Errorf("hash não confere")
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.got[code] = hash
+	return nil
+}
+func (f *fakeAvatars) RemoveAvatar(code string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.got, code)
+}
+func (f *fakeAvatars) AvatarURLs() map[string]string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	out := map[string]string{}
+	for c, h := range f.got {
+		out[c] = "/u/a/" + c + "-" + h + ".jpg"
+	}
+	return out
+}
+func (f *fakeAvatars) Mine(hash string) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if b, ok := f.mine[hash]; ok {
+		return b, nil
+	}
+	return nil, fmt.Errorf("sem foto")
+}
+func (f *fakeAvatars) MineURL(hash string) string { return "" }
+
+// setPhoto simula a pessoa escolhendo uma foto (a página grava o arquivo, o Go avisa).
+func setPhoto(p *person, b []byte) string {
+	h := media.Hash(b)
+	p.av.mu.Lock()
+	p.av.mine[h] = b
+	p.av.mu.Unlock()
+	p.SetAvatar(h)
+	return h
+}
+
+func TestAvatarReachesFriendsAndRoom(t *testing.T) {
+	b := newBus()
+	ana, beto, carla := join(b, "Ana", "anaaaaaa"), join(b, "Beto", "betoooo2"), join(b, "Carla", "carlaaa3")
+	befriend(t, ana, beto)
+	befriend(t, ana, carla) // Carla não é amiga do Beto
+
+	h := setPhoto(beto, []byte("foto do beto"))
+	eventually(t, "Ana recebe a foto do amigo", func() bool { return ana.av.AvatarHash(beto.code) == h })
+	if s := ana.State(); s.Avatars[beto.code] == "" {
+		t.Errorf("a foto deveria ir para a página: %v", s.Avatars)
+	}
+
+	// na sala, quem não é amigo também recebe (pelo anúncio do dono)
+	ana.CreateRoom(true)
+	beto.Join(ana.code)
+	carla.Join(ana.code)
+	eventually(t, "os três na sala", func() bool { return roomMembers(ana) == 3 && roomMembers(carla) == 3 })
+	eventually(t, "Carla recebe a foto do Beto pela sala", func() bool { return carla.av.AvatarHash(beto.code) == h })
+
+	// trocar a foto já na sala: o dono repassa
+	h2 := setPhoto(beto, []byte("foto nova"))
+	eventually(t, "foto nova chega a todos", func() bool { return ana.av.AvatarHash(beto.code) == h2 && carla.av.AvatarHash(beto.code) == h2 })
+
+	// tirar a foto: os amigos apagam a guardada
+	beto.SetAvatar("")
+	eventually(t, "Ana apaga a foto", func() bool { return ana.av.AvatarHash(beto.code) == "" })
+}
+
+func TestAvatarNotSentToStrangers(t *testing.T) {
+	b := newBus()
+	beto, dani := join(b, "Beto", "betoooo2"), join(b, "Dani", "daniii44")
+	h := setPhoto(beto, []byte("foto do beto"))
+	// Dani pede a foto sem ser amiga nem estar na mesma sala; mesmo que respondesse, ela
+	// só aceita fotos que pediu por causa de um anúncio
+	dani.mu.Lock()
+	dani.avAsked[beto.code+" "+h] = time.Now()
+	dani.mu.Unlock()
+	dani.net.Send(beto.code, "av-get", map[string]string{"h": h})
+	time.Sleep(100 * time.Millisecond)
+	if dani.av.AvatarHash(beto.code) != "" {
+		t.Error("a foto não pode ir para quem não é amigo nem está na sala")
 	}
 }
