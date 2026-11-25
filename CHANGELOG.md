@@ -8,6 +8,8 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
+## [0.7.0] — 2026-11-24
+
 ### Adicionado
 - Crie os seus próprios temas em Configurações → Aparência → Criar tema. Os temas que
   você cria podem ter uma imagem de fundo atrás de todo o app.
@@ -125,7 +127,12 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 - Excluir áudio de certos apps na transmissão (ex.: Discord, para evitar eco).
 - Atualização automática.
 
-[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.3.2...HEAD
+[Não lançado]: https://github.com/vitorbatalha/familiashare/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.7.0
+[0.6.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.6.1
+[0.6.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.6.0
+[0.5.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.5.0
+[0.4.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.4.0
 [0.3.2]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.2
 [0.3.1]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.1
 [0.3.0]: https://github.com/vitorbatalha/familiashare/releases/tag/v0.3.0
