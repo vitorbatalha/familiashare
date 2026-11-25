@@ -243,10 +243,121 @@ html.blur #tb .wm,html.blur #tb .wb{opacity:.5}
 #tb #wClose:active{background:#c42b1ccc}
 #tb .rz{position:absolute;top:0;height:4px;z-index:1}
 html.max #tb .rz{display:none}
+/* ===== Imagem de fundo do tema (atrás de tudo) ===== */
+#side{position:relative}
+#top,#tabs,.pane,#foot{position:relative;z-index:1}
+#bgimg{position:fixed;inset:-40px;z-index:-1;background:center/cover no-repeat;display:none}
+#bgveil{position:fixed;inset:0;z-index:-1;background:#000;display:none;pointer-events:none}
+html.hasbg{background:var(--bg)}
+html.hasbg body{background:transparent}
+html.hasbg #bgimg,html.hasbg #bgveil{display:block}
+html.hasbg #tb{background:color-mix(in srgb,var(--bg) 55%,transparent)}
+html.hasbg.room #side{background:color-mix(in srgb,var(--foot) 62%,transparent)}
+html.hasbg #foot{background:color-mix(in srgb,var(--foot) 72%,transparent)}
+html.hasbg #stage{background:#00000059}
+
+/* ===== Foto de perfil: círculo com anel de status (verde online, vermelho ao vivo) ===== */
+.av{width:36px;height:36px;border-radius:50%;flex:none;display:grid;place-items:center;font-weight:700;font-size:15px;color:#fff;background:var(--raised);overflow:hidden}
+.av img,.av canvas{width:100%;height:100%;object-fit:cover;display:block}
+.av.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--green)}
+.av.live{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--red);animation:avp 1.6s infinite}
+.group .av.on,.item.box .av.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--green)}
+@keyframes avp{50%{box-shadow:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--red) 35%,transparent)}}
+.av.off{opacity:.45;filter:grayscale(1)}
+.av.pend{background:var(--raised);color:var(--mute);border:1px dashed var(--edge2)}
+#myAv{all:unset;cursor:pointer;position:relative;width:44px;height:44px;flex:none;border-radius:50%}
+#myAv .av{width:44px;height:44px;font-size:17px}
+#myAv i{position:absolute;right:-3px;bottom:-3px;width:20px;height:20px;border-radius:50%;background:var(--raised);border:2px solid var(--bg);display:grid;place-items:center;color:var(--fg)}
+#myAv:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+
+/* ===== Janelas por cima (novidades, foto de perfil) ===== */
+.modal{position:fixed;inset:var(--tb) 0 0;z-index:40;background:#0009;display:flex;align-items:flex-start;justify-content:center;padding:32px 24px;overflow:auto}
+.modal .box{width:min(452px,100%);background:var(--card);border:1px solid var(--edge);border-radius:16px;box-shadow:0 20px 60px #0009;padding:20px 18px 18px;display:flex;flex-direction:column;gap:12px}
+.modal .xb{all:unset;cursor:pointer;width:32px;height:32px;flex:none;border:1px solid var(--edge);border-radius:50%;display:grid;place-items:center;color:var(--mute)}
+.modal .xb:hover{color:var(--fg);border-color:var(--mute)}
+.modal .acts{display:flex;gap:8px;margin-top:4px}
+.modal .acts button{flex:1;height:44px;border-radius:11px}
+.feat{display:flex;gap:14px;align-items:center;padding:10px;border-radius:12px;background:var(--bg);border:1px solid var(--line)}
+.feat .vis{width:104px;height:78px;flex:none;border-radius:9px;overflow:hidden;border:1px solid var(--edge);display:grid;place-items:center;position:relative;background:var(--foot)}
+.feat b{display:block;font-size:15px}
+.feat p{margin:3px 0 0;color:var(--fg2);font-size:13px;line-height:1.4}
+.crop{position:relative;height:320px;border-radius:12px;overflow:hidden;background:#000;cursor:grab;touch-action:none}
+.crop:active{cursor:grabbing}
+.crop img{position:absolute;max-width:none;user-select:none;pointer-events:none}
+.crop .ring{position:absolute;left:50%;top:50%;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;box-shadow:0 0 0 999px #0009;outline:2px solid #ffffffd9;pointer-events:none}
+.crop .hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:12px;background:#000b;color:#fff;padding:4px 10px;border-radius:99px;white-space:nowrap;pointer-events:none}
+#avDlg input[type=range],.slot input[type=range]{padding:0;border:0;background:none;accent-color:var(--fg)}
+.linkdel{all:unset;cursor:pointer;align-self:center;font-size:13px;color:var(--err)}
+
+/* ===== Aparência: temas seus, editor com seletor de cores, imagens do tema ===== */
+.theme .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.theme .tl{display:flex;align-items:center;gap:2px;margin:-4px -4px -4px 0;min-height:26px}
+.ib{all:unset;cursor:pointer;width:26px;height:26px;flex:none;display:grid;place-items:center;border-radius:6px;color:var(--mute)}
+.ib:hover{background:var(--raised);color:var(--fg)}
+.ib.del:hover{color:var(--red)}
+.theme.add{border-style:dashed;border-color:var(--edge2);color:var(--mute);place-items:center;text-align:center;min-height:112px}
+#lookEdit{display:flex;flex-direction:column;gap:14px}
+#lookEdit .back{all:unset;cursor:pointer;color:var(--mute);font-size:13px;display:inline-flex;align-items:center;gap:6px;align-self:flex-start}
+#lookEdit .back:hover{color:var(--fg)}
+#lookEdit h1{margin:-6px 0 0}
+#lookEdit label.fld{display:grid;gap:5px;font-size:12px;color:var(--mute)}
+#lookEdit label.fld input,#lookEdit label.fld select{background:var(--bg);font-size:14px}
+.crows{display:grid;gap:12px;padding:12px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.crow{display:flex;align-items:center;gap:10px;position:relative}
+.crow .who{flex:1;min-width:0}
+.crow .who small{display:block;font-size:12px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crow .sw2{all:unset;cursor:pointer;width:40px;height:40px;flex:none;border-radius:9px;border:1px solid var(--edge2)}
+.crow .hex{all:unset;box-sizing:border-box;cursor:pointer;width:100px;flex:none;display:flex;align-items:center;gap:6px;font:13px ui-monospace,Consolas,monospace;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px}
+.crow .hex.open{border-color:var(--fg);box-shadow:0 0 0 1px var(--fg)}
+.crow .hex i{width:12px;height:12px;border-radius:3px;border:1px solid #ffffff40;flex:none}
+#lookEdit .acts{display:flex;gap:8px;margin-top:4px}
+#lookEdit .acts button{height:46px;border-radius:11px}
+#lookEdit .acts .main{flex:1}
+#lookEdit .acts .ghost{width:auto;padding:0 16px}
+.cp{position:absolute;right:0;top:46px;z-index:5;width:262px;background:#1d1d21;border:1px solid #4a4a52;border-radius:12px;box-shadow:0 12px 40px #0009;padding:12px;display:grid;gap:10px;color:#f5ebdd;color-scheme:dark}
+.cp .sv{position:relative;height:150px;border-radius:8px;cursor:crosshair;touch-action:none}
+.cp .knob{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #00000080;pointer-events:none}
+.cp .hue{-webkit-appearance:none;appearance:none;width:100%;height:12px;border-radius:99px;margin:0;padding:0;border:0;background:linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);cursor:pointer}
+.cp .hue::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:transparent;border:2px solid #fff;box-shadow:0 0 0 1px #00000080}
+.cp .r{display:flex;gap:8px;align-items:center}
+.cp .big{width:34px;height:34px;flex:none;border-radius:8px;border:1px solid #ffffff33}
+.cp .hx{flex:1;width:auto;min-width:0;font:13px ui-monospace,Consolas,monospace;text-transform:uppercase;color:#f5ebdd;background:#0b0b0c;border:1px solid #33333a;border-radius:8px;padding:8px}
+.cp .tb2{all:unset;cursor:pointer;width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:8px;background:#141416;border:1px solid #33333a;color:#f5ebdd}
+.cp .cpt{font-size:11px;color:#a1a1a8}
+.cp .sws{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
+.cp .sws button{all:unset;cursor:pointer;aspect-ratio:1;border-radius:6px;border:1px solid #ffffff26}
+.slot{display:grid;gap:10px;padding:10px;border:1px solid var(--line);border-radius:11px;background:var(--card)}
+.slot .lbl{display:flex;align-items:baseline;gap:8px}
+.slot .lbl b{flex:1}
+.slot .lbl span{font-size:12px;color:var(--mute)}
+.slot label{display:grid;gap:6px;font-size:13px}
+.thumb{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--edge);background:center/cover no-repeat var(--bg)}
+.thumb .tools{position:absolute;right:6px;top:6px;display:flex;gap:6px}
+.thumb .tools button{all:unset;cursor:pointer;height:28px;padding:0 10px;border-radius:7px;background:#000b;color:#fff;font-size:12px;font-weight:600;display:flex;align-items:center}
+.thumb .tools button:hover{background:#000}
+.thumb .tools button.del{width:28px;padding:0;justify-content:center;color:#ff8a8d}
+/* prévia do fundo no editor: o app no tamanho real (na sala e fora dela), reduzido na mesma escala */
+.pvl{font-size:12px;color:var(--mute)}
+.pvw{position:relative;overflow:hidden;border-radius:6px;border:1px solid var(--edge);pointer-events:none}
+.pv{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,"Segoe UI",sans-serif;user-select:none}
+.pv .ph{position:absolute;inset:-40px;background:center/cover no-repeat}
+.pv .veil{position:absolute;inset:0;background:#000}
+.pv .lay{position:absolute;inset:0;display:flex;flex-direction:column}
+.pv .pvme{width:44px;height:44px;flex:none;display:grid}
+.pv .pvme .av{width:44px;height:44px;font-size:17px}
+.pvt{display:flex;gap:8px}
+.pvt .del{color:var(--err)}
+.pick{all:unset;cursor:pointer;box-sizing:border-box;display:grid;place-items:center;height:52px;border:1px dashed var(--edge2);border-radius:8px;color:var(--mute);font-size:12px;font-weight:500}
+.pick:hover{color:var(--fg);border-color:var(--mute)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13px;cursor:pointer}
+.check input{width:18px;height:18px;flex:none;margin:1px 0 0;padding:0;accent-color:var(--fg)}
+.check small{display:block;color:var(--mute);font-size:12px}
+
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
+<div id="bgimg" aria-hidden="true"></div><div id="bgveil" aria-hidden="true"></div>
 
 <div id="tb">
   <div class="wm"><img src="icon.png" alt="" draggable="false">familiashare</div>
@@ -269,6 +380,7 @@ html.max #tb .rz{display:none}
 <div id="app">
  <aside id="side">
   <header id="top">
+    <button id="myAv" aria-label="Sua foto de perfil (clique para trocar)" title="Sua foto de perfil"></button>
     <div class="me">
       <input id="myName" maxlength="32" spellcheck="false" aria-label="Seu nome (clique para mudar)" title="Clique para mudar seu nome">
       <div class="muted">código <span id="myCode" role="button" tabindex="0" title="Clique para copiar">········</span><span id="copied" hidden>✓ copiado</span> <span id="net"></span></div>
@@ -416,18 +528,59 @@ html.max #tb .rz{display:none}
       </div>
     </section>
     <section id="prefLook" hidden>
-      <h1>Aparência</h1>
-      <div class="pref">
-        <b>Tema</b>
-        <div class="themes" id="themes"></div>
+      <div id="lookList">
+        <h1>Aparência</h1>
+        <div class="pref">
+          <b>Temas padrão</b>
+          <div class="themes" id="themes"></div>
+        </div>
+        <div class="pref">
+          <div class="head"><b style="flex:1">Seus temas</b><span class="muted" id="myThemesCount"></span></div>
+          <div class="themes" id="myThemes"></div>
+        </div>
       </div>
+      <div id="lookEdit" hidden></div>
     </section>
     <section id="prefNews" hidden>
       <h1>Novidades</h1>
+      <div class="pref" style="padding-top:0"><button class="ghost small" id="showHighlights">Ver os destaques da última versão</button></div>
       <div id="news"></div>
     </section>
   </main>
 </div>
+
+<!-- novidades da versão (aparece uma vez depois de atualizar) -->
+<div class="modal" id="newsDlg" hidden>
+  <div class="box" role="dialog" aria-labelledby="newsTitle">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1"><div style="font-size:12px;font-weight:600;color:var(--green)" id="newsVer"></div><div style="font-size:20px;font-weight:700;margin-top:2px" id="newsTitle">O que há de novo</div></div>
+      <button class="xb" id="newsClose" aria-label="Fechar">✕</button>
+    </div>
+    <div id="newsList" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="acts"><button class="ghost" id="newsNotes">Ver notas completas</button><button id="newsOk">Entendi</button></div>
+  </div>
+</div>
+
+<!-- foto de perfil: recortar e enviar -->
+<div class="modal" id="avDlg" hidden>
+  <div class="box" role="dialog" aria-labelledby="avTitle">
+    <div style="display:flex;align-items:center"><b style="flex:1;font-size:17px" id="avTitle">Sua foto</b><button class="xb" id="avClose" aria-label="Fechar">✕</button></div>
+    <div class="crop" id="avCrop"><img id="avImg" alt=""><div class="ring"></div><span class="hint">Arraste para ajustar</span></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color:var(--mute)"><circle cx="11" cy="11" r="7"></circle><path d="M8 11h6M21 21l-5-5"></path></svg>
+      <input type="range" id="avZoom" min="100" max="300" value="100" aria-label="Zoom" style="flex:1">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="color:var(--mute)"><circle cx="11" cy="11" r="7"></circle><path d="M8 11h6M11 8v6M21 21l-5-5"></path></svg>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;background:var(--bg);border:1px solid var(--line)">
+      <span class="av on" style="width:40px;height:40px"><canvas id="avPrev" width="128" height="128"></canvas></span>
+      <span class="muted" style="flex:1">É assim que seus amigos vão ver você. A foto é reduzida para 128×128 antes de ser enviada.</span>
+    </div>
+    <div class="acts"><button class="ghost" id="avOther" style="flex:none;width:auto;padding:0 14px">Outra imagem…</button><button id="avUse">Usar esta foto</button></div>
+    <button class="linkdel" id="avRemove">Remover minha foto</button>
+  </div>
+</div>
+<input type="file" id="avFile" accept="image/*" hidden>
+<input type="file" id="imgFile" accept="image/*" hidden>
 
 <div id="toasts"></div>
 
@@ -472,6 +625,7 @@ let myVersion = '';
 async function renderUpdate() {
   let u; try { u = await goUpdate(); } catch { return; }
   myVersion = u.current;
+  checkNews();
   $('#ver').textContent = u.current ? `versão ${u.current}` : 'versão de desenvolvimento';
   const show = u.available && (u.busy || u.err || updDismissed !== u.version);
   $('#upd').hidden = !show; if (!show) return;
@@ -510,6 +664,7 @@ setInterval(refresh, 1000);
 function renderHeader() {
   if (document.activeElement !== $('#myName')) $('#myName').value = S.name;
   $('#myCode').textContent = S.code;
+  setHTML('#myAv', avatar(S.code, S.name) + '<i>' + IX.cam + '</i>');
   $('#net').textContent = S.net ? '· ' + S.net : '';
 }
 function renderTabs() {
@@ -543,6 +698,7 @@ $('#myCode').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.prev
 /* ================= Configurações do app ================= */
 let prefTab = 'general', newsLoaded = false;
 function showPrefs(on) {
+  if (!on && ed) closeEditor(false);
   $('#prefs').hidden = !on;
   if (on) { renderPrefs(); loadNews(); }
 }
@@ -553,23 +709,404 @@ function renderPrefs() {
   renderThemes();
   $('#prefsVer').textContent = myVersion ? `familiashare ${myVersion}` : 'familiashare (desenvolvimento)';
 }
-// Temas de cores: [nome salvo, nome mostrado, é escuro]. As cores ficam no CSS (data-theme).
-const THEMES = [['escuro', 'Escuro', true], ['claro', 'Claro', false], ['meia-noite', 'Meia-noite', true], ['roxo', 'Roxo', true], ['verde', 'Verde-escuro', true], ['cafe', 'Café', true]];
+
+/* ================= Temas ================= */
+// Temas padrão: [nome salvo, nome mostrado, é escuro, [fundo, lateral, texto, destaque]].
+// As cores completas ficam no CSS (data-theme); as 4 daqui servem de ponto de partida
+// para criar um tema. Os temas da pessoa (S.config.myThemes) têm só as 4 cores e o resto
+// é calculado em themeTokens.
+const THEMES = [
+  ['escuro', 'Escuro', true, ['#0b0b0c', '#101012', '#f5ebdd', '#f5ebdd']], ['claro', 'Claro', false, ['#f7f4ee', '#efeae1', '#1f1c18', '#1f1c18']],
+  ['meia-noite', 'Meia-noite', true, ['#0a0f1d', '#0d1427', '#e6edf7', '#8fb0ff']], ['roxo', 'Roxo', true, ['#1b1627', '#16121f', '#f1edf8', '#645394']],
+  ['verde', 'Verde-escuro', true, ['#1a2421', '#151e1b', '#e7efe9', '#8cc9a5']], ['cafe', 'Café', true, ['#16110d', '#1a140f', '#f3e6d3', '#e3a869']]];
+const MAX_MY_THEMES = 20;
 let theme = '';
-function applyTheme(name) {
-  if (!THEMES.some(t => t[0] === name)) name = 'escuro';
-  theme = name;
-  document.documentElement.dataset.theme = name;
+const myThemes = () => (S && S.config.myThemes) || [];
+function themeById(id) {
+  const d = THEMES.find(t => t[0] === id);
+  if (d) return { id, label: d[1], dark: d[2], custom: false, c: { bg: d[3][0], side: d[3][1], fg: d[3][2], accent: d[3][3] } };
+  const m = myThemes().find(t => t.id === id);
+  if (m) return { id, label: m.name, dark: lum(m.bg) < 0.4, custom: true, c: { bg: m.bg, side: m.side, fg: m.fg, accent: m.accent } };
+  return null;
+}
+// cores: "#rrggbb" ⇄ [r, g, b], mistura, luminância e contraste (WCAG)
+const rgb = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+const hexOf = a => '#' + a.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const mix = (a, b, k) => { const x = rgb(a), y = rgb(b); return hexOf(x.map((v, i) => v + (y[i] - v) * k)); };
+const lum = h => rgb(h).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }).reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i], 0);
+const onColor = c => lum(c) > 0.45 ? '#111111' : '#ffffff';
+// as variáveis do CSS de um tema a partir das 4 cores escolhidas
+function themeTokens(c) {
+  const light = lum(c.bg) > 0.4;
+  return {
+    '--bg': c.bg, '--foot': c.side, '--fg': c.fg, '--btn': c.accent, '--on': onColor(c.accent),
+    '--fg2': mix(c.fg, c.bg, 0.15), '--mute': mix(c.fg, c.bg, 0.38), '--faint': mix(c.fg, c.bg, 0.62), '--dim': mix(c.fg, c.bg, 0.68),
+    '--line': mix(c.bg, c.fg, 0.13), '--card': mix(c.bg, c.fg, 0.05), '--hover': mix(c.bg, c.fg, 0.08), '--raised': mix(c.bg, c.fg, 0.1),
+    '--sel': mix(c.side, c.fg, 0.14), '--edge': mix(c.bg, c.fg, 0.2), '--edge2': mix(c.bg, c.fg, 0.32),
+    '--redbg': mix(c.bg, '#e5484d', 0.16), '--greenbg': mix(c.bg, '#3dd68c', 0.16),
+    '--green': light ? '#1e9a5a' : '#3dd68c', '--err': light ? '#c4282d' : '#ff8a8d', 'color-scheme': light ? 'light' : 'dark'
+  };
+}
+const TOKEN_KEYS = Object.keys(themeTokens({ bg: '#000000', side: '#000000', fg: '#ffffff', accent: '#ffffff' }));
+function setTokens(t) {
+  const st = document.documentElement.style;
+  for (const k of TOKEN_KEYS) if (t && t[k]) st.setProperty(k, t[k]); else st.removeProperty(k);
+}
+// mostra as cores de um tema na janela (sem salvar): padrão pelo CSS, os da pessoa por variáveis
+function paintTheme(t) {
+  document.documentElement.dataset.theme = t.custom ? (t.dark ? 'escuro' : 'claro') : t.id;
+  setTokens(t.custom ? themeTokens(t.c) : null);
+}
+function applyTheme(id) {
+  const t = themeById(id) || themeById('escuro');
+  theme = t.id;
+  paintTheme(t);
+  applyImages();
   // salva e deixa a borda e o menu da janela do Windows na mesma cor
   const line = getComputedStyle(document.documentElement).getPropertyValue('--line').trim();
-  goSetTheme(name, THEMES.find(t => t[0] === name)[2], line);
+  goSetTheme(t.id, t.dark, line);
   renderThemes();
 }
+const swStyle = c => `--foot:${c.side};--bg:${c.bg};--fg:${c.fg};--mute:${mix(c.fg, c.bg, 0.38)};--btn:${c.accent};--line:${mix(c.bg, c.fg, 0.13)}`;
+const IX = {
+  pen: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+  trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+  plus: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" style="display:block;margin:0 auto 6px"><path d="M12 5v14M5 12h14"/></svg>',
+  eye: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 22l1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="M15 6l3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>',
+  cam: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>'
+};
 function renderThemes() {
   setHTML('#themes', THEMES.map(([id, label]) => `<button class="theme ${id === theme ? 'on' : ''}" data-theme-pick="${id}" aria-pressed="${id === theme}">` +
     `<span class="sw" data-theme="${id}" aria-hidden="true"><i></i><span><u></u><s></s><b></b></span></span>${label}</button>`).join(''));
+  const mine = myThemes();
+  setHTML('#myThemes', mine.map(m => {
+    const on = m.id === theme, t = themeById(m.id);
+    return `<div class="theme ${on ? 'on' : ''}" role="button" tabindex="0" data-theme-pick="${esc(m.id)}" aria-pressed="${on}">` +
+      `<span class="sw" style="${swStyle(t.c)}" aria-hidden="true"><i></i><span><u></u><s></s><b></b></span></span>` +
+      `<span class="tl"><span class="nm">${esc(m.name)}</span>` +
+      `<button class="ib" data-theme-edit="${esc(m.id)}" aria-label="Editar o tema ${esc(m.name)}" title="Editar">${IX.pen}</button>` +
+      `<button class="ib del" data-theme-del="${esc(m.id)}" aria-label="Apagar o tema ${esc(m.name)}" title="Apagar">${IX.trash}</button></span></div>`;
+  }).join('') + (mine.length < MAX_MY_THEMES ? `<button class="theme add" data-theme-new>${'<span>' + IX.plus + 'Criar tema</span>'}</button>` : ''));
+  $('#myThemesCount').textContent = mine.length ? `${mine.length} de ${MAX_MY_THEMES}` : '';
 }
 $('#themes').onclick = e => { const b = e.target.closest('[data-theme-pick]'); if (b) applyTheme(b.dataset.themePick); };
+$('#myThemes').onclick = async e => {
+  const edit = e.target.closest('[data-theme-edit]'), del = e.target.closest('[data-theme-del]');
+  if (edit) return openEditor(edit.dataset.themeEdit);
+  if (del) {
+    const t = themeById(del.dataset.themeDel); if (!t) return;
+    if (!confirm(`Apagar o tema "${t.label}"? As imagens dele também são apagadas.`)) return;
+    await goDeleteTheme(t.id); await refresh();
+    if (theme === t.id) applyTheme('escuro'); else renderThemes();
+    return;
+  }
+  if (e.target.closest('[data-theme-new]')) return openEditor(null);
+  const b = e.target.closest('[data-theme-pick]'); if (b) applyTheme(b.dataset.themePick);
+};
+$('#myThemes').onkeydown = e => {
+  const b = e.target.closest('div[data-theme-pick]');
+  if (b && e.target === b && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); applyTheme(b.dataset.themePick); }
+};
+
+/* ---------- Editor de tema (4 cores; a janela inteira mostra o tema enquanto edita) ---------- */
+let ed = null; // { id, c: {bg, side, fg, accent}, img } enquanto o editor está aberto
+const ED_FIELDS = [['bg', 'Fundo', 'área principal e campos'], ['side', 'Lateral', 'lista de amigos e barras'], ['fg', 'Texto', 'nomes e títulos'], ['accent', 'Destaque', 'botão principal']];
+function openEditor(id) {
+  const t = id ? themeById(id) : themeById(theme) || themeById('escuro');
+  const saved = id ? savedImages(id) : null;
+  ed = { id: id || '', c: { ...t.c }, img: { back: '', blur: 8, dim: 40, posX: 50, posY: 50, zoom: 120, ...saved, changed: {} } };
+  const base = id || theme, opt = (v, n) => `<option value="${esc(v)}"${v === base ? " selected" : ""}>${esc(n)}</option>`;
+  const opts = THEMES.map(d => opt(d[0], d[1])).join("") + myThemes().map(m => opt(m.id, m.name)).join("");
+  $('#lookEdit').innerHTML = `<button class="back" id="edBack"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Aparência</button>
+    <h1>${id ? 'Editar tema' : 'Novo tema'}</h1>
+    <p class="muted" style="margin-top:-8px">A janela inteira já mostra o tema enquanto você escolhe.</p>
+    <label class="fld">Nome<input id="edName" maxlength="24" spellcheck="false"></label>
+    <label class="fld">Começar a partir de<select id="edBase">${opts}</select></label>
+    <div class="crows">${ED_FIELDS.map(([k, label, hint]) => `<div class="crow" data-k="${k}">
+      <button class="sw2" data-pick="${k}" aria-label="Escolher a cor de ${label}"></button>
+      <div class="who"><b>${label}</b><small>${hint}</small></div>
+      <button class="hex" data-pick="${k}" aria-expanded="false" aria-label="${label}: código da cor (clique para escolher)"><i></i><span></span></button></div>`).join('')}</div>
+    <div id="edImgs" style="display:grid;gap:10px"></div>
+    <div class="acts"><button class="main" id="edSave">Salvar tema</button><button class="ghost" id="edCancel">Cancelar</button></div>`;
+  $('#edName').value = id ? t.label : (theme && themeById(theme).custom ? themeById(theme).label + ' (cópia)' : 'Meu tema');
+  $('#lookList').hidden = true; $('#lookEdit').hidden = false;
+  $('#edBack').onclick = $('#edCancel').onclick = () => closeEditor(false);
+  $('#edSave').onclick = () => closeEditor(true);
+  $('#edBase').onchange = e => { const b = themeById(e.target.value); if (b) { ed.c = { ...b.c }; closePicker(); edUpdate(); } };
+  for (const b of $$('#lookEdit [data-pick]')) b.onclick = () => (cp && cp.k === b.dataset.pick) ? closePicker() : openPicker(b.dataset.pick);
+  renderEdImages(); wireEdImages();
+  edUpdate();
+  $('#prefs main').scrollTop = 0;
+}
+function edUpdate() {
+  if (!ed) return;
+  paintTheme({ custom: true, dark: lum(ed.c.bg) < 0.4, c: ed.c });
+  for (const [k] of ED_FIELDS) {
+    const row = $(`.crow[data-k="${k}"]`);
+    row.querySelector('.sw2').style.background = ed.c[k];
+    row.querySelector('.hex i').style.background = ed.c[k];
+    row.querySelector('.hex span').textContent = ed.c[k].toUpperCase();
+  }
+  edPaintImages();
+}
+async function closeEditor(save) {
+  if (!ed) return;
+  closePicker();
+  const draft = ed; ed = null;
+  if (save) {
+    const id = await goSaveTheme({ id: draft.id, name: $('#edName').value.trim(), bg: draft.c.bg, side: draft.c.side, fg: draft.c.fg, accent: draft.c.accent });
+    if (!id) { toast('Não deu para salvar o tema.'); ed = draft; return; }
+    await saveEdImages(id, draft.img);
+    await refresh();
+    applyTheme(id);
+  } else {
+    const t = themeById(theme) || themeById('escuro');
+    paintTheme(t); applyImages();
+  }
+  $('#lookEdit').hidden = true; $('#lookEdit').innerHTML = ''; $('#lookList').hidden = false;
+  renderThemes();
+}
+
+/* ---------- Seletor de cores (abre ao clicar no código ou no quadrado da cor) ---------- */
+let cp = null; // { k, el, hsv }
+function toHsv(h) {
+  const [r, g, b] = rgb(h).map(v => v / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let hu = 0;
+  if (d) hu = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: Math.round((hu * 60 + 360) % 360), s: mx ? d / mx : 0, v: mx };
+}
+function fromHsv({ h, s, v }) {
+  const f = n => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return hexOf([f(5), f(3), f(1)].map(x => x * 255));
+}
+let recentColors = [];
+try { recentColors = JSON.parse(localStorage.getItem('recentColors') || '[]').filter(c => /^#[0-9a-f]{6}$/.test(c)).slice(0, 4); } catch { }
+function openPicker(k) {
+  closePicker();
+  const row = $(`.crow[data-k="${k}"]`);
+  const el = document.createElement('div');
+  el.className = 'cp'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Escolher cor');
+  el.innerHTML = `<div class="sv"><span class="knob"></span></div>
+    <input class="hue" type="range" min="0" max="359" aria-label="Matiz">
+    <div class="r"><span class="big"></span><input class="hx" maxlength="7" spellcheck="false" aria-label="Código da cor">` +
+    (window.EyeDropper ? `<button class="tb2" data-eye title="Conta-gotas: pegar uma cor da tela" aria-label="Conta-gotas: pegar uma cor da tela">${IX.eye}</button>` : '') +
+    `</div><div class="cpt">Cores do tema e recentes</div><div class="sws"></div>`;
+  row.appendChild(el);
+  cp = { k, el, hsv: toHsv(ed.c[k]) };
+  row.querySelector('.hex').classList.add('open'); row.querySelector('.hex').setAttribute('aria-expanded', 'true');
+  const sv = el.querySelector('.sv');
+  const fromPointer = e => {
+    const b = sv.getBoundingClientRect();
+    cp.hsv = { h: cp.hsv.h, s: Math.max(0, Math.min(1, (e.clientX - b.left) / b.width)), v: Math.max(0, Math.min(1, 1 - (e.clientY - b.top) / b.height)) };
+    setPicked(fromHsv(cp.hsv), true);
+  };
+  sv.onpointerdown = e => { sv.setPointerCapture(e.pointerId); fromPointer(e); sv.onpointermove = fromPointer; };
+  sv.onpointerup = sv.onpointercancel = () => { sv.onpointermove = null; };
+  el.querySelector('.hue').oninput = e => { cp.hsv = { ...cp.hsv, h: +e.target.value }; setPicked(fromHsv(cp.hsv), true); };
+  el.querySelector('.hx').oninput = e => {
+    const v = e.target.value.trim().toLowerCase(), h = v.startsWith('#') ? v : '#' + v;
+    if (/^#[0-9a-f]{6}$/.test(h)) setPicked(h, false);
+  };
+  el.querySelector('.hx').onkeydown = e => { if (e.key === 'Enter') closePicker(); };
+  const eye = el.querySelector('[data-eye]');
+  if (eye) eye.onclick = async () => { try { const r = await new EyeDropper().open(); setPicked(r.sRGBHex.toLowerCase(), false); } catch { } };
+  el.querySelector('.sws').onclick = e => { const b = e.target.closest('[data-c]'); if (b) setPicked(b.dataset.c, false); };
+  updatePicker();
+  el.querySelector('.hx').focus(); el.querySelector('.hx').select();
+}
+function setPicked(hex, fromHsvPick) {
+  if (!cp || !ed) return;
+  ed.c[cp.k] = hex;
+  if (!fromHsvPick) cp.hsv = toHsv(hex);
+  edUpdate(); updatePicker();
+}
+function updatePicker() {
+  if (!cp) return;
+  const el = cp.el, cur = ed.c[cp.k], { h, s, v } = cp.hsv;
+  el.querySelector('.sv').style.background = `linear-gradient(to top,#000,transparent),linear-gradient(to right,#fff,hsl(${h},100%,50%))`;
+  Object.assign(el.querySelector('.knob').style, { left: s * 100 + '%', top: (1 - v) * 100 + '%', background: cur });
+  el.querySelector('.hue').value = h;
+  el.querySelector('.big').style.background = cur;
+  const hx = el.querySelector('.hx'); if (document.activeElement !== hx) hx.value = cur.toUpperCase();
+  const sws = [...new Set([ed.c.bg, ed.c.side, ed.c.fg, ed.c.accent, ...recentColors])].slice(0, 8);
+  setHTML(el.querySelector('.sws'), sws.map(c => `<button data-c="${c}" style="background:${c}" aria-label="Usar ${c.toUpperCase()}" title="${c.toUpperCase()}"></button>`).join(''));
+}
+function closePicker() {
+  if (!cp) return;
+  const c = ed && ed.c[cp.k];
+  if (c) {
+    recentColors = [c, ...recentColors.filter(x => x !== c)].slice(0, 4);
+    try { localStorage.setItem('recentColors', JSON.stringify(recentColors)); } catch { }
+  }
+  const row = cp.el.parentElement;
+  cp.el.remove(); cp = null;
+  if (row) { row.querySelector('.hex').classList.remove('open'); row.querySelector('.hex').setAttribute('aria-expanded', 'false'); }
+}
+document.addEventListener('pointerdown', e => { if (cp && !cp.el.contains(e.target) && !e.target.closest('[data-pick]')) closePicker(); });
+
+/* ---------- Imagem de fundo dos temas criados (atrás de todo o app) ---------- */
+// Só temas criados pela pessoa têm imagem, escolhida no editor do tema. A imagem fica só
+// neste PC (pasta do app, ver internal/media).
+const imgUrl = (id, h) => `/u/t/${id}-back-${h}.jpg`;
+// imagem salva de um tema, no formato que paintImages usa
+function savedImages(id) {
+  const t = themeById(id), im = t && t.custom ? ((S && S.config.themeImages) || {})[id] : null;
+  if (!im || !im.back) return null;
+  return { back: imgUrl(id, im.back), blur: im.blur ?? 8, dim: im.dim ?? 40, posX: im.posX ?? 50, posY: im.posY ?? 50, zoom: im.zoom || 100 };
+}
+// Encaixe da imagem: ela cobre a área inteira e o zoom amplia a partir daí. Com zoom de
+// 100% só sobra imagem num sentido (uma foto deitada numa janela em pé só anda na
+// horizontal); ampliando, sobra nos dois e Horizontal/Vertical funcionam em qualquer
+// janela. A mesma conta vale para a janela e para as prévias do editor.
+const imgDims = {};
+function placeBg(el, im) {
+  const d = imgDims[im.back];
+  if (!d) {
+    const img = new Image();
+    img.onload = () => { imgDims[im.back] = [img.naturalWidth, img.naturalHeight]; placeBg(el, im); };
+    img.src = im.back;
+    return;
+  }
+  const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
+  const s = Math.max(w / d[0], h / d[1]) * (im.zoom || 100) / 100;
+  el.style.backgroundSize = `${d[0] * s}px ${d[1] * s}px`;
+  el.style.backgroundPosition = `${im.posX ?? 50}% ${im.posY ?? 50}%`;
+}
+// mostra o fundo na janela
+let bgShown = null;
+function paintImages(im) {
+  im = im || {};
+  bgShown = im.back ? im : null;
+  document.documentElement.classList.toggle('hasbg', !!im.back);
+  if (!im.back) return;
+  $('#bgimg').style.backgroundImage = `url('${im.back}')`;
+  $('#bgimg').style.filter = im.blur ? `blur(${im.blur}px)` : '';
+  placeBg($('#bgimg'), im);
+  $('#bgveil').style.opacity = (im.dim ?? 40) / 100;
+}
+function applyImages() { paintImages(savedImages(theme)); }
+addEventListener('resize', () => { if (bgShown) placeBg($('#bgimg'), bgShown); });
+// reduz a imagem escolhida (lado maior até maxSide) e devolve um JPEG em data URL
+async function fileToJPEG(file, maxSide, quality = 0.86) {
+  const bmp = await createImageBitmap(file);
+  const k = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  bmp.close();
+  return c.toDataURL('image/jpeg', quality);
+}
+
+/* Prévia no editor: o app desenhado no tamanho real (janela fora da sala, 500×860, e
+   aumentada numa sala, 1280×800) e reduzido na mesma escala para caber. Usa as variáveis
+   de cor do tema que está sendo editado, então muda junto com as cores, o desfoque e o
+   escurecimento. */
+const PV_SIZES = { room: [1280, 800], solo: [500, 860] };
+function pvBar() {
+  return `<div style="height:32px;flex:none;display:flex;align-items:center;background:color-mix(in srgb,var(--bg) 55%,transparent)">
+    <div style="flex:1;display:flex;align-items:center;gap:7px;padding-left:10px;font-size:13px;font-weight:700"><img src="icon.png" alt="" style="width:20px;height:20px">familiashare</div>
+    ${['&#xE921;', '&#xE922;', '&#xE8BB;'].map(g => `<span style="width:46px;text-align:center;font:10px 'Segoe Fluent Icons','Segoe MDL2 Assets'">${g}</span>`).join('')}</div>`;
+}
+function pvHeader() {
+  return `<div style="padding:8px 16px 12px;display:flex;align-items:center;gap:12px">
+    <span class="pvme">${avatar(S.code, S.name)}</span>
+    <div style="flex:1;min-width:0"><div style="font-weight:700;font-size:15px">${esc(S.name)}</div><div style="font-size:12px;color:var(--mute)">código <span style="font-family:ui-monospace,Consolas,monospace;color:var(--fg)">${esc(S.code)}</span></div></div>
+    <span style="width:40px;height:40px;display:grid;place-items:center;border-radius:9px;background:var(--card);border:1px solid var(--edge)">${$('#openPrefs').innerHTML}</span></div>`;
+}
+function pvTabs(room) {
+  const tab = (t, on) => `<span style="height:36px;display:grid;place-items:center;border-radius:8px;${on ? 'background:var(--btn);color:var(--on);font-weight:700' : 'color:var(--mute)'}">${t}</span>`;
+  return `<div style="margin:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:11px">${tab(room ? 'Sua sala' : 'Sala', room)}${tab('Amigos', !room)}</div>`;
+}
+function pvPerson(code, name, sub, status, extra = '') {
+  return `<div style="display:flex;align-items:center;gap:12px;padding:9px 8px">${avatar(code, name, status)}<div style="flex:1;min-width:0"><div style="font-weight:600">${esc(name)}</div>${sub ? `<div style="font-size:12px;color:var(--mute)">${sub}</div>` : ''}</div>${extra}</div>`;
+}
+const pvH2 = t => `<div style="font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em;padding:8px 2px 2px">${t}</div>`;
+const pvBtn = (t, h = 46) => `<span style="flex:1;height:${h}px;display:grid;place-items:center;border-radius:11px;background:var(--btn);color:var(--on);font-size:15px;font-weight:700">${t}</span>`;
+const pvIcon = i => `<span style="width:46px;height:46px;flex:none;display:grid;place-items:center;border-radius:11px;background:var(--card);border:1px solid var(--edge)">${i}</span>`;
+function pvSolo() {
+  return pvBar() + `<div style="flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:560px;margin:0 auto">` + pvHeader() + pvTabs(false) +
+    `<div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+      <div style="display:flex;gap:8px"><span style="flex:1;padding:9px 10px;border-radius:9px;background:var(--card);border:1px solid var(--line);color:var(--mute)">código do amigo</span><span style="padding:9px 12px;border-radius:9px;background:var(--card);border:1px solid var(--edge);font-weight:600">Adicionar</span></div>
+      ${pvH2('Amigos')}${pvPerson('caio0000', 'Caio', 'online', 'on')}${pvPerson('dani0000', 'Dani', 'online', 'on')}${pvPerson('edu00000', 'Edu', 'offline', 'off')}</div>
+    <div style="padding:12px 16px 16px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--foot) 72%,transparent);display:flex;flex-direction:column;gap:10px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:3px;background:var(--card);border:1px solid var(--line);border-radius:9px"><span style="height:30px;display:grid;place-items:center;border-radius:6px;background:var(--sel);font-size:12px;font-weight:600">Pública</span><span style="height:30px;display:grid;place-items:center;color:var(--mute);font-size:12px;font-weight:600">Particular</span></div>
+      <div style="display:flex">${pvBtn('Abrir minha sala')}</div></div></div>`;
+}
+function pvRoom() {
+  const live = `<span style="width:32px;height:32px;display:grid;place-items:center;border-radius:8px;color:var(--red);background:var(--redbg)">${IC.screen}</span>`;
+  return pvBar() + `<div style="flex:1;min-height:0;display:flex">
+    <div style="width:360px;flex:none;display:flex;flex-direction:column;background:color-mix(in srgb,var(--foot) 62%,transparent);border-right:1px solid var(--line)">` + pvHeader() + pvTabs(true) +
+      `<div style="flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:2px">${pvH2('Na sala · 3')}${pvPerson(S.code, S.name + ' (você)', 'dono', 'on')}${pvPerson('caio0000', 'Caio', 'transmitindo', 'live', live)}${pvPerson('dani0000', 'Dani', '', 'on')}</div>
+      <div style="padding:12px 16px 16px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--foot) 72%,transparent);display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:12px;color:var(--mute)">Pronto para transmitir</div>
+        <div style="display:flex;gap:8px">${pvBtn('Compartilhar tela')}${pvIcon($('#camBtn').innerHTML)}${pvIcon($('#openSettings').innerHTML)}${pvIcon($('#leaveRoom').innerHTML)}</div></div></div>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#00000059;color:#f5ebdd">
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 12px"><span style="font-weight:700;font-size:15px;flex:1">Sua sala</span><span style="padding:8px 12px;border-radius:9px;background:#1a1a1d;border:1px solid #33333a;font-size:13px;font-weight:600">Tela cheia</span></div>
+      <div style="flex:1;display:grid;grid-template-rows:1fr 160px;gap:8px;padding:0 10px 10px">
+        <div style="position:relative;border-radius:10px;background:#000;overflow:hidden"><div style="position:absolute;inset:40px 90px;border-radius:6px;background:#1b2633"></div><span style="position:absolute;left:10px;bottom:10px;background:#000b;color:#fff;font-size:13px;font-weight:600;padding:5px 10px;border-radius:7px">Tela de Caio</span></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"><div style="border:1px dashed #3a3a40;border-radius:10px;display:grid;place-items:center;color:#a1a1a8;font-size:13px">Câmera de Dani desligada</div></div>
+      </div></div></div>`;
+}
+function renderEdImages() {
+  const im = ed.img;
+  const pv = (kind, label) => { const [w, h] = PV_SIZES[kind]; return `<div class="pvl">${label}</div><div class="pvw" data-w="${w}" data-h="${h}"><div class="pv" style="width:${w}px;height:${h}px"><div class="ph" style="background-image:url('${im.back}')"></div><div class="veil"></div><div class="lay">${kind === 'room' ? pvRoom() : pvSolo()}</div></div></div>`; };
+  const body = im.back
+    ? `${pv('room', 'Numa sala (janela aumentada)')}${pv('solo', 'Fora de uma sala')}
+       <div class="pvt"><button class="ghost small" data-img-pick>Trocar imagem</button><button class="ghost small del" data-img-del>Remover</button></div>
+       <label>Zoom<input type="range" min="100" max="300" value="${im.zoom}" data-opt="zoom"></label>
+       <label>Horizontal<input type="range" min="0" max="100" value="${im.posX}" data-opt="posX"></label>
+       <label>Vertical<input type="range" min="0" max="100" value="${im.posY}" data-opt="posY"></label>
+       <label>Desfoque<input type="range" min="0" max="20" value="${im.blur}" data-opt="blur"></label>
+       <label>Escurecer<input type="range" min="0" max="90" value="${im.dim}" data-opt="dim"></label>`
+    : `<button class="pick" data-img-pick>Escolher imagem…</button>`;
+  $('#edImgs').innerHTML = `<div><b>Imagem de fundo (opcional)</b><div class="muted" style="margin-top:2px">Fica atrás de todo o app, só neste PC: não vai para os seus amigos.</div></div>
+    <div class="slot">${body}</div>`;
+  edBgPreview();
+}
+// encaixa as prévias (mesma escala para as duas) e aplica desfoque e escurecimento
+function edBgPreview() {
+  const box = $('#edImgs .slot'); if (!box || !ed || !ed.img.back) return;
+  const k = Math.max(0.05, (box.clientWidth - 22) / PV_SIZES.room[0]);
+  for (const w of $$('#edImgs .pvw')) {
+    w.style.width = w.dataset.w * k + 'px'; w.style.height = w.dataset.h * k + 'px';
+    const p = w.querySelector('.pv');
+    p.style.transform = `scale(${k})`;
+    p.querySelector('.ph').style.filter = ed.img.blur ? `blur(${ed.img.blur}px)` : '';
+    p.querySelector('.veil').style.opacity = ed.img.dim / 100;
+    placeBg(p.querySelector('.ph'), ed.img);
+  }
+}
+function edPaintImages() { if (ed) { paintImages(ed.img); edBgPreview(); } }
+function wireEdImages() {
+  const box = $('#edImgs');
+  box.onclick = e => {
+    if (e.target.closest('[data-img-pick]')) { $('#imgFile').value = ''; $('#imgFile').click(); }
+    if (e.target.closest('[data-img-del]')) { ed.img.back = ''; ed.img.changed.back = ''; renderEdImages(); edPaintImages(); }
+  };
+  box.oninput = e => {
+    const k = e.target.dataset.opt; if (!k) return;
+    ed.img[k] = +e.target.value;
+    edPaintImages();
+  };
+}
+$('#imgFile').onchange = async () => {
+  const f = $('#imgFile').files[0]; if (!f || !ed) return;
+  let url;
+  try { url = await fileToJPEG(f, 1920); } catch { toast('Não deu para abrir essa imagem.'); return; }
+  if (!ed) return;
+  ed.img.back = url; ed.img.changed.back = url; ed.img.posX = ed.img.posY = 50; ed.img.zoom = 120;
+  renderEdImages(); edPaintImages();
+};
+addEventListener('resize', () => edBgPreview());
+// grava a imagem do rascunho no tema salvo; devolve false se deu erro
+async function saveEdImages(id, im) {
+  if ('back' in im.changed) {
+    const err = await goSetThemeImage(id, 'back', im.changed.back);
+    if (err) { toast(err, 6000); return false; }
+  }
+  if (im.back) await goSetThemeImageOpts(id, { blur: im.blur, dim: im.dim, posX: im.posX, posY: im.posY, zoom: im.zoom });
+  return true;
+}
 
 // "2026-11-01" → "1 nov 2026"; "2026-10" → "out 2026"
 const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -586,7 +1123,7 @@ async function loadNews() {
     r.sections.map(s => (s.title ? `<h3>${esc(s.title)}</h3>` : '') + `<ul>${s.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul>`).join('') +
     '</div>').join('') || '<p class="muted">Sem novidades registradas.</p>';
 }
-for (const b of $$('#prefs nav button')) b.onclick = () => { prefTab = b.dataset.pref; renderPrefs(); };
+for (const b of $$('#prefs nav button')) b.onclick = () => { if (ed) closeEditor(false); prefTab = b.dataset.pref; renderPrefs(); };
 for (const r of $$('#onClose input')) r.onchange = () => { goSetOnClose(r.value); setTimeout(refresh, 150); };
 $('#openLogs').onclick = () => goOpenLogs();
 $('#quitApp').onclick = () => {
@@ -595,14 +1132,144 @@ $('#quitApp').onclick = () => {
 };
 $('#openPrefs').onclick = () => showPrefs(true);
 $('#prefsClose').onclick = () => showPrefs(false);
-addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#prefs').hidden) showPrefs(false); });
+addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if (cp) return closePicker();
+  if (!$('#avDlg').hidden) return closeAvatar();
+  if (!$('#newsDlg').hidden) return closeNews(false);
+  if (ed) return closeEditor(false);
+  if (!$('#prefs').hidden) showPrefs(false);
+});
+
+/* ================= Novidades da versão (aparece uma vez depois de atualizar) ================= */
+// Destaques de cada versão, com um desenho de cada novidade. A lista completa fica em
+// Configurações → Novidades (CHANGELOG.md).
+const NEWS_VIS = {
+  themes: `<div style="display:grid;grid-template-columns:repeat(3,22px);gap:4px">${['#ff8a5c', '#7c5cff', '#3fc1c9', '#e5484d', '#3dd68c'].map(c => `<span style="width:22px;height:22px;border-radius:50%;background:${c}"></span>`).join('')}<span style="width:22px;height:22px;border-radius:50%;border:1px dashed var(--mute)"></span></div>`,
+  images: `<svg width="104" height="78" viewBox="0 0 104 78" aria-hidden="true" style="display:block"><defs><linearGradient id="nvs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2b1d4f"/><stop offset=".6" stop-color="#c2556b"/><stop offset="1" stop-color="#f3a35c"/></linearGradient></defs><rect width="104" height="78" fill="url(#nvs)"/><circle cx="76" cy="46" r="11" fill="#ffd28a"/><path d="M0 58 L24 42 L44 54 L66 36 L86 52 L104 44 L104 78 L0 78Z" fill="#5a2a4f"/><rect x="8" y="6" width="40" height="66" rx="5" fill="#140a18" fill-opacity=".6"/></svg>`,
+  avatar: `<div style="display:flex"><span class="av on" style="width:34px;height:34px;background:#c2556b;box-shadow:0 0 0 2px var(--foot),0 0 0 4px var(--green)">B</span><span class="av live" style="width:34px;height:34px;margin-left:-4px;background:#3fc1c9;color:#06222b;box-shadow:0 0 0 2px var(--foot),0 0 0 4px var(--red);animation:none">C</span></div>`,
+  volume: `<div style="display:grid;gap:8px;width:80px"><div style="display:flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4zM15.5 8.5a5 5 0 0 1 0 7"/></svg><span style="flex:1;height:4px;border-radius:2px;background:linear-gradient(90deg,var(--fg) 0 35%,var(--edge) 35%)"></span></div><div class="muted" style="font-size:11px;text-align:center">Caio · 35%</div></div>`
+};
+const HIGHLIGHTS = {
+  '0.7.0': [
+    ['themes', 'Crie os seus temas', 'Escolha as cores, dê um nome e guarde quantos quiser.'],
+    ['images', 'Imagem de fundo no tema', 'Coloque uma imagem sua atrás de todo o app, com desfoque e escurecimento.'],
+    ['avatar', 'Foto de perfil', 'Seus amigos veem a sua foto na lista e na sala.'],
+    ['volume', 'Volume de cada pessoa salvo', 'O volume que você escolhe para cada amigo continua igual ao abrir o app de novo.']
+  ]
+};
+const NEWS_LATEST = Object.keys(HIGHLIGHTS).at(-1);
+let newsShown = '', newsChecked = false;
+function showNews(v) {
+  const items = HIGHLIGHTS[v]; if (!items) return;
+  newsShown = v;
+  $('#newsVer').textContent = v === myVersion ? `Atualizado para a ${v}` : `Versão ${v}`;
+  $('#newsList').innerHTML = items.map(([vis, title, text]) => `<div class="feat"><div class="vis">${NEWS_VIS[vis]}</div><div><b>${esc(title)}</b><p>${esc(text)}</p></div></div>`).join('');
+  $('#newsDlg').hidden = false;
+  $('#newsOk').focus();
+}
+function closeNews(openNotes) {
+  $('#newsDlg').hidden = true;
+  if (newsShown) goSeenNews(newsShown);
+  if (openNotes) { prefTab = 'news'; showPrefs(true); }
+}
+// depois de atualizar: mostra os destaques da versão nova, uma vez
+function checkNews() {
+  if (newsChecked || !S || !myVersion) return;
+  newsChecked = true;
+  if (HIGHLIGHTS[myVersion] && S.config.newsSeen !== myVersion) showNews(myVersion);
+}
+$('#newsClose').onclick = $('#newsOk').onclick = () => closeNews(false);
+$('#newsNotes').onclick = () => closeNews(true);
+$('#showHighlights').onclick = () => showNews(HIGHLIGHTS[myVersion] ? myVersion : NEWS_LATEST);
+$('#newsDlg').onclick = e => { if (e.target === $('#newsDlg')) closeNews(false); };
+
+/* ================= Foto de perfil ================= */
+const AV_COLORS = ['#c2556b', '#3fc1c9', '#645394', '#e3a869', '#3b82f6', '#2f9e68', '#ec4899', '#8fb0ff'];
+function avColor(code) { let h = 0; for (const ch of code || '') h = (h * 31 + ch.charCodeAt(0)) >>> 0; return AV_COLORS[h % AV_COLORS.length]; }
+// status: 'on' (anel verde), 'live' (anel vermelho), 'off' (cinza) ou ''
+function avatar(code, name, status = '') {
+  const url = code === S.code ? S.myAvatar : (S.avatars || {})[code];
+  if (url) return `<span class="av ${status}"><img src="${esc(url)}" alt=""></span>`;
+  const bg = avColor(code), ini = esc((String(name || '?').trim()[0] || '?').toUpperCase());
+  return `<span class="av ${status}" style="background:${bg};color:${onColor(bg)}">${ini}</span>`;
+}
+// recorte: a imagem é arrastada e ampliada atrás de um círculo de D px
+const AV_D = 240, AV_OUT = 128;
+let av = null; // { img, s0, z, ox, oy } enquanto o recorte está aberto
+function avLayout() {
+  if (!av) return;
+  const box = $('#avCrop').getBoundingClientRect(), s = av.s0 * av.z, w = av.img.naturalWidth * s, h = av.img.naturalHeight * s;
+  av.ox = Math.max(-(w - AV_D) / 2, Math.min((w - AV_D) / 2, av.ox));
+  av.oy = Math.max(-(h - AV_D) / 2, Math.min((h - AV_D) / 2, av.oy));
+  Object.assign($('#avImg').style, { width: w + 'px', height: h + 'px', left: box.width / 2 - w / 2 + av.ox + 'px', top: box.height / 2 - h / 2 + av.oy + 'px' });
+  avDraw($('#avPrev'));
+}
+function avDraw(canvas) {
+  const s = av.s0 * av.z, w = av.img.naturalWidth * s, h = av.img.naturalHeight * s;
+  const sx = (w / 2 - av.ox - AV_D / 2) / s, sy = (h / 2 - av.oy - AV_D / 2) / s, size = AV_D / s;
+  const x = canvas.getContext('2d');
+  x.imageSmoothingQuality = 'high';
+  x.clearRect(0, 0, canvas.width, canvas.height);
+  x.drawImage(av.img, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+}
+function openAvatar(src) {
+  const img = $('#avImg');
+  img.onload = () => {
+    av = { img, s0: Math.max(AV_D / img.naturalWidth, AV_D / img.naturalHeight), z: 1, ox: 0, oy: 0 };
+    $('#avZoom').value = 100;
+    $('#avDlg').hidden = false;
+    $('#avRemove').hidden = !S.myAvatar;
+    avLayout();
+  };
+  img.onerror = () => toast('Não deu para abrir essa imagem.');
+  img.src = src;
+}
+function closeAvatar() {
+  $('#avDlg').hidden = true;
+  if (av && av.img.src.startsWith('blob:')) URL.revokeObjectURL(av.img.src);
+  av = null;
+}
+$('#myAv').onclick = () => { if (S && S.myAvatar) openAvatar(S.myAvatar); else { $('#avFile').value = ''; $('#avFile').click(); } };
+$('#avOther').onclick = () => { $('#avFile').value = ''; $('#avFile').click(); };
+$('#avFile').onchange = () => { const f = $('#avFile').files[0]; if (f) openAvatar(URL.createObjectURL(f)); };
+$('#avClose').onclick = closeAvatar;
+$('#avDlg').onclick = e => { if (e.target === $('#avDlg')) closeAvatar(); };
+$('#avZoom').oninput = e => { if (av) { av.z = +e.target.value / 100; avLayout(); } };
+$('#avCrop').onpointerdown = e => {
+  if (!av) return;
+  const el = $('#avCrop'), start = { x: e.clientX, y: e.clientY, ox: av.ox, oy: av.oy };
+  el.setPointerCapture(e.pointerId);
+  el.onpointermove = m => { av.ox = start.ox + m.clientX - start.x; av.oy = start.oy + m.clientY - start.y; avLayout(); };
+  el.onpointerup = el.onpointercancel = () => { el.onpointermove = null; };
+};
+$('#avCrop').onwheel = e => {
+  if (!av) return;
+  e.preventDefault();
+  const z = Math.max(1, Math.min(3, av.z - e.deltaY / 500));
+  av.z = z; $('#avZoom').value = Math.round(z * 100); avLayout();
+};
+$('#avUse').onclick = async () => {
+  if (!av) return;
+  const c = document.createElement('canvas'); c.width = c.height = AV_OUT;
+  avDraw(c);
+  let url = c.toDataURL('image/jpeg', 0.85);
+  if (url.length > 28000) url = c.toDataURL('image/jpeg', 0.7); // a foto vai pela rede: precisa ser pequena
+  const err = await goSetAvatar(url);
+  if (err) { toast(err, 6000); return; }
+  closeAvatar(); refresh();
+};
+$('#avRemove').onclick = async () => {
+  if (!confirm('Remover a sua foto de perfil?')) return;
+  await goSetAvatar(''); closeAvatar(); refresh();
+};
 
 /* ================= Aba Amigos ================= */
 function renderFriends() {
   let inbox = '';
-  for (const r of S.requests) inbox += `<div class="item box"><span class="st on"></span><div class="who"><div class="name">${esc(r.name)}</div><div class="sub">quer ser seu amigo · ${esc(r.code)}</div></div>
+  for (const r of S.requests) inbox += `<div class="item box">${avatar(r.code, r.name, 'on')}<div class="who"><div class="name">${esc(r.name)}</div><div class="sub">quer ser seu amigo · ${esc(r.code)}</div></div>
     <button class="small" data-act="accept" data-code="${esc(r.code)}">Aceitar</button><button class="ghost small" data-act="reject" data-code="${esc(r.code)}">Recusar</button></div>`;
-  for (const i of S.invites) inbox += `<div class="item box"><span class="st live"></span><div class="who"><div class="name">${esc(i.name)}</div><div class="sub">te convidou para a sala</div></div>
+  for (const i of S.invites) inbox += `<div class="item box">${avatar(i.code, i.name, 'live')}<div class="who"><div class="name">${esc(i.name)}</div><div class="sub">te convidou para a sala</div></div>
     <button class="small" data-act="join" data-code="${esc(i.code)}">Entrar</button><button class="ghost small" data-act="decline" data-code="${esc(i.code)}">Recusar</button></div>`;
   setHTML('#inbox', inbox);
   const joinName = S.names[S.joining] || (S.friends.find(f => f.room && f.room.owner === S.joining) || {}).room?.ownerName || S.joining;
@@ -618,7 +1285,7 @@ function renderFriends() {
   const invite = f => !S.isOwner || !f.online || inMyRoom.has(f.code) ? ''
     : invited.has(f.code) ? '<span class="muted">convidado</span>'
     : `<button class="ghost small" data-act="invite" data-code="${esc(f.code)}">Convidar</button>`;
-  const row = (f, sub, extra = '') => `<div class="item"><span class="st ${f.online ? 'on' : ''}"></span>
+  const row = (f, sub, extra = '') => `<div class="item">${avatar(f.code, f.name, f.online ? 'on' : 'off')}
       <div class="who"><div class="name">${esc(f.name)}</div><div class="sub">${sub}</div></div>${extra}${invite(f)}
       <button class="x" title="Remover amigo" aria-label="Remover ${esc(f.name)}" data-act="remove" data-code="${esc(f.code)}">×</button></div>`;
   const rooms = new Map(); // dono → amigos na sala dele
@@ -643,7 +1310,7 @@ function renderFriends() {
   const rest = fr.filter(f => ![...rooms.values()].some(g => g.list.includes(f)));
   if (rooms.size && rest.length) html += '<h2 class="fh">Amigos</h2>';
   for (const f of rest) html += row(f, inMyRoom.has(f.code) ? 'nesta sala' : f.online ? 'online' : 'offline');
-  for (const p of S.pending) html += `<div class="item"><span class="st"></span><div class="who"><div class="name">${esc(p)}</div><div class="sub">aguardando aceitar seu pedido</div></div>
+  for (const p of S.pending) html += `<div class="item"><span class="av pend">?</span><div class="who"><div class="name">${esc(p)}</div><div class="sub">aguardando aceitar seu pedido</div></div>
     <button class="x" title="Cancelar pedido" aria-label="Cancelar pedido" data-act="remove" data-code="${esc(p)}">×</button></div>`;
   if (!html) html = '<p class="empty">Nenhum amigo ainda.<br>Clique no seu código (no topo) para copiar e passe para alguém, ou adicione o código de um amigo.</p>';
   setHTML('#friends', html);
@@ -706,7 +1373,7 @@ function renderRoom() {
 
   // (dono) pedidos para entrar, de quem não é amigo dele
   let ah = '';
-  for (const a of S.asks) ah += `<div class="item box"><span class="st on"></span><div class="who"><div class="name">${esc(a.name)}</div><div class="sub">quer entrar na sua sala</div></div>
+  for (const a of S.asks) ah += `<div class="item box">${avatar(a.code, a.name, 'on')}<div class="who"><div class="name">${esc(a.name)}</div><div class="sub">quer entrar na sua sala</div></div>
     <button class="small" data-act="ask-yes" data-code="${esc(a.code)}">Aceitar</button><button class="ghost small" data-act="ask-no" data-code="${esc(a.code)}">Recusar</button></div>`;
   setHTML('#asks', ah);
 
@@ -735,7 +1402,7 @@ function renderRoom() {
       if (m.streaming) live += liveBtn(m.code, false, m.name);
       if (m.camera) live += liveBtn('cam:' + m.code, true, m.name);
     }
-    mh += `<div class="item"><span class="st on"></span><div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div>${notes.length ? `<div class="sub">${esc(notes.join(' · '))}</div>` : ''}</div>
+    mh += `<div class="item">${avatar(m.code, m.name, m.streaming ? 'live' : 'on')}<div class="who"><div class="name">${esc(m.name)}${isMe ? ' (você)' : ''}</div>${notes.length ? `<div class="sub">${esc(notes.join(' · '))}</div>` : ''}</div>
       ${add}<span class="live">${live}</span></div>`;
   }
   setHTML('#members', mh);

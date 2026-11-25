@@ -13,6 +13,7 @@
 package social
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"maps"
@@ -70,6 +71,19 @@ type Member struct {
 	Name      string `json:"name"`
 	Streaming bool   `json:"streaming"`
 	Camera    bool   `json:"camera,omitempty"` // câmera ligada
+	Av        string `json:"av,omitempty"`     // hash da foto de perfil (ver Avatars)
+}
+
+// Avatars guarda as fotos de perfil (na prática, *media.Store). A foto de cada pessoa
+// viaja pela sinalização: quem tem foto anuncia o hash dela ("av" no ping, no join e
+// nos membros da sala); quem não tem aquela foto guardada pede com "av-get".
+type Avatars interface {
+	AvatarHash(code string) string
+	SaveAvatar(code, hash string, b []byte) error
+	RemoveAvatar(code string)
+	AvatarURLs() map[string]string
+	Mine(hash string) ([]byte, error)
+	MineURL(hash string) string
 }
 
 type Room struct {
@@ -110,9 +124,16 @@ type Service struct {
 	joinAt   time.Time
 	asking   bool // o dono recebeu o pedido e ainda não respondeu (join-wait)
 	notices  []string
-	keys     map[string]string // primeira chave vista de cada código, enquanto o app está aberto (a de amigos também vai para o config)
-	warned   map[string]bool   // já avisou que alguém tentou usar este código
+	keys     map[string]string    // primeira chave vista de cada código, enquanto o app está aberto (a de amigos também vai para o config)
+	warned   map[string]bool      // já avisou que alguém tentou usar este código
+	avs      Avatars              // nil = sem fotos de perfil (testes)
+	avOf     map[string]string    // último hash de foto anunciado por cada código
+	avAsked  map[string]time.Time // "código hash" → quando pedi a foto
+	avSent   map[string]time.Time // "código hash" → quando mandei a minha foto
 }
+
+// SetAvatars liga as fotos de perfil (chame antes de Run).
+func (a *Service) SetAvatars(av Avatars) { a.avs = av }
 
 // New cria o Service. Depois, conecte a sinalização e chame Run:
 //
@@ -125,6 +146,7 @@ func New(cfg config.Config, save func(config.Config), host Streamer, toUI func(m
 		lastSeen: map[string]time.Time{}, friendAt: map[string]*RoomInfo{},
 		requests: map[string]string{}, invites: map[string]string{},
 		keys: map[string]string{}, warned: map[string]bool{},
+		avOf: map[string]string{}, avAsked: map[string]time.Time{}, avSent: map[string]time.Time{},
 	}
 }
 
@@ -227,11 +249,17 @@ func (a *Service) myRoomInfo() *RoomInfo { // com a.mu travado
 type hello struct {
 	Name string    `json:"name"`
 	Room *RoomInfo `json:"room,omitempty"`
+	Av   string    `json:"av,omitempty"` // hash da foto de perfil (depois da 0.6.1)
+}
+
+// helloLocked é a apresentação desta pessoa: nome, sala pública e foto.
+func (a *Service) helloLocked() hello { // com a.mu travado
+	return hello{Name: a.cfg.Name, Room: a.myRoomInfo(), Av: a.cfg.Avatar}
 }
 
 func (a *Service) pingAll() {
 	a.mu.Lock()
-	h := hello{a.cfg.Name, a.myRoomInfo()}
+	h := a.helloLocked()
 	friends := slices.Clone(a.cfg.Friends)
 	pending := slices.Clone(a.cfg.Pending)
 	a.mu.Unlock()
@@ -375,15 +403,45 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 	json.Unmarshal(d, &h)
 	a.mu.Lock()
 	var reply func()
+	var extra []func() // pedidos de fotos de perfil
 	var broadcast bool
 	switch t {
+	case "av-get": // alguém quer a minha foto (amigo ou da mesma sala)
+		var x struct {
+			H string `json:"h"`
+		}
+		json.Unmarshal(d, &x)
+		shared := a.isFriend(src) || (a.room != nil && a.room.member(src) != nil)
+		if shared && a.avs != nil && x.H != "" && x.H == a.cfg.Avatar && time.Since(a.avSent[src+" "+x.H]) > 10*time.Second {
+			if b, err := a.avs.Mine(x.H); err == nil {
+				a.avSent[src+" "+x.H] = time.Now()
+				reply = a.sendLater(src, "av", map[string]string{"h": x.H, "d": base64.StdEncoding.EncodeToString(b)})
+			}
+		}
+	case "av": // a foto que eu pedi
+		var x struct {
+			H string `json:"h"`
+			D string `json:"d"`
+		}
+		json.Unmarshal(d, &x)
+		key := src + " " + x.H
+		if a.avs != nil && time.Since(a.avAsked[key]) < 2*time.Minute {
+			delete(a.avAsked, key)
+			b, err := base64.StdEncoding.DecodeString(x.D)
+			if err == nil {
+				err = a.avs.SaveAvatar(src, x.H, b)
+			}
+			if err != nil {
+				log.Printf("social: foto de perfil recusada: %v", err)
+			}
+		}
 	case "fr-req":
 		switch {
 		case a.isFriend(src): // já é amigo (ex.: a outra pessoa reinstalou)
-			reply = a.sendLater(src, "fr-acc", hello{Name: a.cfg.Name})
+			reply = a.sendLater(src, "fr-acc", hello{Name: a.cfg.Name, Av: a.cfg.Avatar})
 		case slices.Contains(a.cfg.Pending, src): // os dois se adicionaram
 			a.addFriendLocked(src, h.Name)
-			reply = a.sendLater(src, "fr-acc", hello{Name: a.cfg.Name})
+			reply = a.sendLater(src, "fr-acc", hello{Name: a.cfg.Name, Av: a.cfg.Avatar})
 		default:
 			if _, ok := a.requests[src]; !ok {
 				a.notice(h.Name + " quer ser seu amigo.")
@@ -396,7 +454,7 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 				a.notice(h.Name + " aceitou seu pedido de amizade.")
 			}
 			a.addFriendLocked(src, h.Name)
-			reply = a.sendLater(src, "ping", hello{a.cfg.Name, a.myRoomInfo()})
+			reply = a.sendLater(src, "ping", a.helloLocked())
 		}
 	case "fr-del":
 		a.removeFriendLocked(src)
@@ -409,7 +467,7 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 			a.friendAt[src] = h.Room
 			a.renameFriendLocked(src, h.Name)
 			if t == "ping" {
-				reply = a.sendLater(src, "pong", hello{a.cfg.Name, a.myRoomInfo()})
+				reply = a.sendLater(src, "pong", a.helloLocked())
 			}
 		}
 	case "invite":
@@ -518,13 +576,64 @@ func (a *Service) onControl(src, t string, d json.RawMessage) {
 			}
 		}
 	}
+	// fotos de perfil anunciadas: pede as que ainda não tenho
+	note := func(code, hash string) {
+		if f := a.noteAvatar(code, hash); f != nil {
+			extra = append(extra, f)
+		}
+	}
+	switch t {
+	case "fr-acc", "ping", "pong", "invite":
+		if a.isFriend(src) {
+			note(src, h.Av)
+		}
+	case "join":
+		if a.room != nil && a.room.Owner == a.cfg.MyCode && a.room.member(src) != nil {
+			changed := a.avOf[src] != h.Av
+			note(src, h.Av)
+			broadcast = broadcast || changed
+		}
+	case "room":
+		if a.room != nil && a.room.Owner == src {
+			for _, m := range a.room.Members {
+				if m.Av != "" { // dono numa versão antiga não manda "av": não apaga nada
+					note(m.Code, m.Av)
+				}
+			}
+		}
+	}
 	a.mu.Unlock()
 	if reply != nil {
 		reply()
 	}
+	for _, f := range extra {
+		f()
+	}
 	if broadcast {
 		a.broadcastRoom()
 	}
+}
+
+// noteAvatar registra o hash de foto anunciado por code e, se for uma foto que eu ainda
+// não tenho, devolve o pedido "av-get" para enviar depois de soltar a.mu.
+func (a *Service) noteAvatar(code, hash string) func() { // com a.mu travado
+	if code == a.cfg.MyCode || (hash != "" && !config.IsHash(hash)) {
+		return nil
+	}
+	a.avOf[code] = hash
+	if a.avs == nil || a.avs.AvatarHash(code) == hash {
+		return nil
+	}
+	if hash == "" { // a pessoa tirou a foto
+		a.avs.RemoveAvatar(code)
+		return nil
+	}
+	key := code + " " + hash
+	if time.Since(a.avAsked[key]) < time.Minute {
+		return nil
+	}
+	a.avAsked[key] = time.Now()
+	return a.sendLater(code, "av-get", map[string]string{"h": hash})
 }
 
 // sendLater prepara um envio para depois de soltar a.mu.
@@ -583,14 +692,14 @@ func (a *Service) AddFriend(code string) string {
 	}
 	if name, ok := a.requests[code]; ok { // a pessoa já tinha me adicionado
 		a.addFriendLocked(code, name)
-		go a.net.Send(code, "fr-acc", hello{Name: a.cfg.Name})
+		go a.net.Send(code, "fr-acc", hello{Name: a.cfg.Name, Av: a.cfg.Avatar})
 		return ""
 	}
 	if !slices.Contains(a.cfg.Pending, code) {
 		a.cfg.Pending = append(a.cfg.Pending, code)
 		a.persist()
 	}
-	go a.net.Send(code, "fr-req", hello{Name: a.cfg.Name})
+	go a.net.Send(code, "fr-req", hello{Name: a.cfg.Name, Av: a.cfg.Avatar})
 	return ""
 }
 
@@ -602,10 +711,10 @@ func (a *Service) AnswerRequest(code string, accept bool) {
 	if ok && accept {
 		a.addFriendLocked(code, name)
 	}
-	me := a.cfg.Name
+	me, av := a.cfg.Name, a.cfg.Avatar
 	a.mu.Unlock()
 	if ok && accept {
-		a.net.Send(code, "fr-acc", hello{Name: me})
+		a.net.Send(code, "fr-acc", hello{Name: me, Av: av})
 	}
 }
 
@@ -656,6 +765,84 @@ func (a *Service) SetVolume(code string, pct int) {
 	}
 }
 
+/* ---------- Aparência e foto de perfil ---------- */
+
+// SaveTheme cria ou atualiza um tema da pessoa (ver config.SaveTheme) e devolve o ID.
+func (a *Service) SaveTheme(t config.CustomTheme) string {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	id := a.cfg.SaveTheme(t)
+	if id != "" {
+		a.persist()
+	}
+	return id
+}
+
+// DeleteTheme apaga um tema criado pela pessoa. Devolve se apagou.
+func (a *Service) DeleteTheme(id string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	ok := a.cfg.DeleteTheme(id)
+	if ok {
+		a.persist()
+	}
+	return ok
+}
+
+// SetThemeImage troca a imagem de fundo de um tema (o arquivo já foi gravado).
+func (a *Service) SetThemeImage(theme, slot, hash string) bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	ok := a.cfg.SetThemeImage(theme, slot, hash)
+	if ok {
+		a.persist()
+	}
+	return ok
+}
+
+// SetThemeImageOpts troca os ajustes das imagens de um tema.
+func (a *Service) SetThemeImageOpts(theme string, o config.ThemeImage) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cfg.SetThemeImageOpts(theme, o) {
+		a.persist()
+	}
+}
+
+// SeenNews registra que as novidades da versão v já foram mostradas.
+func (a *Service) SeenNews(v string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.cfg.NewsSeen != v {
+		a.cfg.NewsSeen = v
+		a.persist()
+	}
+}
+
+// SetAvatar troca a minha foto de perfil (hash do arquivo já gravado; "" = sem foto) e
+// avisa amigos e sala, que pedem a foto nova com "av-get".
+func (a *Service) SetAvatar(hash string) {
+	a.mu.Lock()
+	if hash != "" && !config.IsHash(hash) {
+		a.mu.Unlock()
+		return
+	}
+	a.cfg.Avatar = hash
+	a.persist()
+	var owner string
+	if a.room != nil && a.room.Owner != a.cfg.MyCode {
+		owner = a.room.Owner
+	}
+	name := a.cfg.Name
+	a.mu.Unlock()
+	a.pingAll()
+	if owner != "" { // o dono repassa a foto nova aos outros membros
+		a.net.Send(owner, "join", hello{Name: name, Av: hash})
+	} else {
+		a.broadcastRoom()
+	}
+}
+
 // OnClose é o que o botão de fechar faz (ver SetOnClose).
 func (a *Service) OnClose() string {
 	a.mu.Lock()
@@ -700,7 +887,7 @@ func (a *Service) CreateRoom(public bool) {
 	a.cfg.RoomPublic = public
 	a.persist()
 	a.room = &Room{Owner: a.cfg.MyCode, OwnerName: a.cfg.Name, Public: public,
-		Members: []Member{{Code: a.cfg.MyCode, Name: a.cfg.Name}},
+		Members: []Member{{Code: a.cfg.MyCode, Name: a.cfg.Name, Av: a.cfg.Avatar}},
 		invited: map[string]bool{}, asks: map[string]string{}, refused: map[string]bool{}}
 	a.mu.Unlock()
 	a.pingAll()
@@ -729,10 +916,10 @@ func (a *Service) Invite(code string) {
 	if ok {
 		a.room.invited[code] = true
 	}
-	name := a.cfg.Name
+	name, av := a.cfg.Name, a.cfg.Avatar
 	a.mu.Unlock()
 	if ok {
-		a.net.Send(code, "invite", hello{Name: name})
+		a.net.Send(code, "invite", hello{Name: name, Av: av})
 	}
 }
 
@@ -754,9 +941,9 @@ func (a *Service) Join(owner string) {
 		a.leaveLocked(true)
 	}
 	a.joining, a.joinAt, a.asking = owner, time.Now(), false
-	name := a.cfg.Name
+	name, av := a.cfg.Name, a.cfg.Avatar
 	a.mu.Unlock()
-	a.net.Send(owner, "join", hello{Name: name})
+	a.net.Send(owner, "join", hello{Name: name, Av: av})
 }
 
 // CancelJoin desiste de entrar (ex.: o dono ainda não respondeu ao pedido).
@@ -847,6 +1034,14 @@ func (a *Service) broadcastRoom() {
 		return
 	}
 	snapshot := Room{Owner: r.Owner, OwnerName: r.OwnerName, Public: r.Public, Members: slices.Clone(r.Members)}
+	for i := range snapshot.Members { // fotos de perfil: a minha e as que cada um anunciou
+		m := &snapshot.Members[i]
+		if m.Code == a.cfg.MyCode {
+			m.Av = a.cfg.Avatar
+		} else {
+			m.Av = a.avOf[m.Code]
+		}
+	}
 	a.mu.Unlock()
 	for _, m := range snapshot.Members {
 		if m.Code != snapshot.Owner {
@@ -1054,6 +1249,8 @@ type State struct {
 	Notices  []string          `json:"notices"`
 	Names    map[string]string `json:"names"`
 	Config   config.Config     `json:"config"`
+	Avatars  map[string]string `json:"avatars"`  // código → URL da foto guardada
+	MyAvatar string            `json:"myAvatar"` // URL da minha foto ("" = sem foto)
 }
 
 // State devolve o estado atual (e consome os avisos pendentes).
@@ -1123,6 +1320,13 @@ func (a *Service) State() State {
 	}
 	// cópia: a página lê o State fora do lock, e SetVolume pode mudar o mapa ao mesmo tempo
 	s.Config.Volumes = maps.Clone(a.cfg.Volumes)
+	s.Config.MyThemes = slices.Clone(a.cfg.MyThemes)
+	s.Config.Images = maps.Clone(a.cfg.Images)
+	s.Avatars = map[string]string{}
+	if a.avs != nil {
+		s.Avatars = a.avs.AvatarURLs()
+		s.MyAvatar = a.avs.MineURL(a.cfg.Avatar)
+	}
 	return s
 }
 

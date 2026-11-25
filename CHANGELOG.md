@@ -8,14 +8,20 @@ seguem 0.x.y: **x** sobe em mudanças relevantes, **y** em ajustes e consertos m
 
 ## [Não lançado]
 
-### Segurança
-- Ninguém mais consegue se passar por um amigo seu usando o código dele enquanto ele está
-  offline. Cada app agora tem uma chave que prova quem é, e o familiashare avisa se
-  alguém tentar. Amigos que ainda não atualizaram continuam funcionando normalmente.
-  
+### Adicionado
+- Crie os seus próprios temas em Configurações → Aparência → Criar tema. Os temas que
+  você cria podem ter uma imagem de fundo atrás de todo o app.
+- Agora você tem uma foto de perfil!
+- Depois de atualizar, uma janela mostra as principais novidades da versão.
+
 ### Alterado
 - O volume que você escolhe para a tela de cada amigo fica salvo e continua igual
   quando você abre o app de novo.
+
+### Segurança
+- Ninguém mais consegue se passar por um amigo seu usando o código dele enquanto ele está
+  offline. Cada app agora tem uma chave que prova quem é, e o familiashare avisa se
+  alguém tentar.
 
 ## [0.6.1] — 2026-11-16
 

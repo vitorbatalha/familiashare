@@ -20,14 +20,66 @@ import (
 	"github.com/vitorbatalha/familiashare/internal/changelog"
 	"github.com/vitorbatalha/familiashare/internal/config"
 	"github.com/vitorbatalha/familiashare/internal/ffmpeg"
+	"github.com/vitorbatalha/familiashare/internal/media"
 	"github.com/vitorbatalha/familiashare/internal/social"
 	"github.com/vitorbatalha/familiashare/internal/update"
 	"github.com/vitorbatalha/familiashare/internal/winapi"
 )
 
 // notify mostra uma notificação do Windows (para avisos com a janela em segundo plano).
-func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *winapi.Frame, notify func(title, text string), dataDir string) {
+func bind(w webview2.WebView, svc *social.Service, upd *update.Updater, frame *winapi.Frame, notify func(title, text string), dataDir string, images *media.Store) {
 	hwnd := uintptr(w.Window())
+
+	// aparência: temas criados, imagens dos temas e foto de perfil. As imagens chegam
+	// da página já reduzidas, como data URL JPEG; devolvem "" ou a mensagem de erro.
+	w.Bind("goSaveTheme", func(t config.CustomTheme) string { return svc.SaveTheme(t) })
+	w.Bind("goDeleteTheme", func(id string) {
+		if svc.DeleteTheme(id) {
+			images.RemoveTheme(id, "")
+		}
+	})
+	w.Bind("goSetThemeImage", func(theme, slot, dataURL string) string {
+		if dataURL == "" {
+			if svc.SetThemeImage(theme, slot, "") {
+				images.RemoveTheme(theme, slot)
+			}
+			return ""
+		}
+		b, err := media.DecodeDataURL(dataURL)
+		if err != nil {
+			return err.Error()
+		}
+		h, err := images.SaveTheme(theme, slot, b)
+		if err != nil {
+			log.Printf("aparência: imagem do tema recusada: %v", err)
+			return "Não deu para usar essa imagem: " + err.Error()
+		}
+		if !svc.SetThemeImage(theme, slot, h) {
+			images.RemoveTheme(theme, slot)
+			return "Esse tema não existe mais."
+		}
+		return ""
+	})
+	w.Bind("goSetThemeImageOpts", func(theme string, o config.ThemeImage) { svc.SetThemeImageOpts(theme, o) })
+	w.Bind("goSetAvatar", func(dataURL string) string {
+		if dataURL == "" {
+			images.RemoveMine()
+			go svc.SetAvatar("")
+			return ""
+		}
+		b, err := media.DecodeDataURL(dataURL)
+		if err != nil {
+			return err.Error()
+		}
+		h, err := images.SaveMine(b)
+		if err != nil {
+			log.Printf("aparência: foto de perfil recusada: %v", err)
+			return "Não deu para usar essa foto: " + err.Error()
+		}
+		go svc.SetAvatar(h)
+		return ""
+	})
+	w.Bind("goSeenNews", func(v string) { svc.SeenNews(v) })
 
 	// preferências do app
 	w.Bind("goSetOnClose", func(v string) { svc.SetOnClose(v) })
